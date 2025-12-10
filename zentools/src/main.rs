@@ -124,9 +124,7 @@ fn run() -> Result<()> {
     }
 }
 
-// ============================================================================
 // EPP Command Handlers
-// ============================================================================
 
 fn handle_epp_command(command: EppCommands) -> Result<()> {
     match command {
@@ -172,7 +170,7 @@ fn handle_epp_show() -> Result<()> {
             } else {
                 format!("CPUs: {:?}", cpus)
             };
-            
+
             table.add_row(vec![profile.as_str(), &cpu_list]);
             table.add_row(vec!["", profile.description()]);
         }
@@ -202,18 +200,12 @@ fn handle_epp_level(level: u8) -> Result<()> {
     handle_epp_set(profile)
 }
 
-// ============================================================================
 // SMU Command Handlers
-// ============================================================================
 
 fn handle_smu_command(command: SmuCommands) -> Result<()> {
     match command {
         SmuCommands::Info { verbose } => handle_smu_info(verbose),
-        SmuCommands::PmTable {
-            force,
-            raw,
-            update,
-        } => handle_smu_pm_table(force, raw, update),
+        SmuCommands::PmTable { force, raw, update } => handle_smu_pm_table(force, raw, update),
         SmuCommands::Check => handle_smu_check(),
         SmuCommands::Debug => handle_smu_debug(),
     }
@@ -318,7 +310,10 @@ fn handle_smu_debug() -> Result<()> {
     match SmuManager::read_info() {
         Ok(info) => {
             println!("SMU Version:      {}", info.version);
-            println!("Codename:         {} (raw value from parsing)", info.codename.as_str());
+            println!(
+                "Codename:         {} (raw value from parsing)",
+                info.codename.as_str()
+            );
             println!("Driver Version:   {}", info.drv_version);
             println!("PM Table Version: 0x{:X}", info.pm_table_version);
             println!("PM Table Size:    {} bytes", info.pm_table_size);
@@ -341,8 +336,9 @@ fn handle_smu_info(verbose: bool) -> Result<()> {
     table
         .load_preset(UTF8_FULL)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec![Cell::new("AMD Ryzen SMU Information")
-            .set_alignment(CellAlignment::Center)]);
+        .set_header(vec![
+            Cell::new("AMD Ryzen SMU Information").set_alignment(CellAlignment::Center)
+        ]);
 
     table.add_row(vec!["SMU Version", &info.version.to_string()]);
     table.add_row(vec!["Codename", info.codename.as_str()]);
@@ -371,7 +367,10 @@ fn handle_smu_info(verbose: bool) -> Result<()> {
 fn handle_smu_pm_table(force: bool, raw: bool, update_interval: u64) -> Result<()> {
     if update_interval > 0 {
         // Continuous monitoring mode
-        println!("Monitoring PM table every {} seconds (Ctrl+C to stop)...\n", update_interval);
+        println!(
+            "Monitoring PM table every {} seconds (Ctrl+C to stop)...\n",
+            update_interval
+        );
         loop {
             // Clear screen
             print!("\x1B[2J\x1B[1;1H");
@@ -445,9 +444,7 @@ fn display_pm_table(force: bool, raw: bool) -> Result<()> {
     Ok(())
 }
 
-// ============================================================================
 // Help Text
-// ============================================================================
 
 fn get_extended_help() -> &'static str {
     r#"
