@@ -426,17 +426,23 @@ fn display_pm_table(force: bool, raw: bool) -> Result<()> {
             }
         }
     } else {
-        let metrics = SmuManager::parse_basic_metrics(&pm_table)?;
+        // Use comfy-table for consistent formatting
+        let mut table = Table::new();
+        table
+            .load_preset(UTF8_FULL)
+            .set_content_arrangement(ContentArrangement::Dynamic)
+            .set_header(vec![
+                Cell::new("PM Table Information").set_alignment(CellAlignment::Center)
+            ]);
 
-        println!("\n╭────────────────────────────────────────────────────────╮");
-        println!("│                  PM Table Information                  │");
-        println!("├────────────────────────────────────────────────────────┤");
-        println!("│ Version          : 0x{:<33X} │", metrics.table_version);
-        println!("│ Size             : {:<36} │", metrics.table_size);
-        println!("╰────────────────────────────────────────────────────────╯");
+        table.add_row(vec!["Version", &format!("0x{:X}", pm_table.version)]);
+        table.add_row(vec!["Size", &format!("{} bytes", pm_table.size())]);
+
+        println!();
+        println!("{}", table);
 
         if force {
-            println!("\nNote: PM table version not fully supported yet.");
+            println!("\nPM table for Zen 5 (0x620205) is not mapped yet.");
             println!("Use --raw to see raw data for reverse engineering.");
         }
     }
@@ -464,10 +470,10 @@ EXAMPLES:
     zentools smu pm-table -f -u 2        # Monitor PM table every 2 seconds
 
 EPP PROFILES:
-    0 / performance        - Maximum performance, higher power usage
+    0 / performance         - Maximum performance, higher power usage
     1 / balance-performance - Balanced, leaning toward performance (default)
-    2 / balance-power      - Balanced, leaning toward power saving
-    3 / power              - Maximum power saving, may limit performance
+    2 / balance-power       - Balanced, leaning toward power saving
+    3 / power               - Maximum power saving, may limit performance
 
 REQUIREMENTS:
     - AMD Ryzen CPU (Zen 2 or newer)
