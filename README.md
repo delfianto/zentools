@@ -320,15 +320,13 @@ Try it and let us know!
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE) for legalese, [LICENSING.md](LICENSING.md) for the human explanation, and [NOTICE](NOTICE) for credits.
-
+GPL-3.0-or-later. See [LICENSE](LICENSE) for legalese.
 **Short version:** Use it, modify it, share it. Just keep it open source when you distribute it. 🎉
 
 ## Links
 
 - **This project:** https://github.com/yourusername/zentools
 - **ryzen_smu driver:** https://github.com/amkillam/ryzen_smu
-- **Bug reports:** https://github.com/yourusername/zentools/issues
 - **AMD Ryzen subreddit:** https://reddit.com/r/Amd (not affiliated, just helpful)
 
 ## Acknowledgments
@@ -343,6 +341,6 @@ Huge thanks to:
 
 ---
 
-Made with 🦀 and ❤️ by someone who was tired of clicking through GUI tools.
+Made with 🦀 and ❤️ in [Zed](https://zed.dev).
 
 _If your CPU becomes self-aware and starts mining Bitcoin without your permission, that's technically not our problem, but please open an issue anyway because that would be fascinating._
