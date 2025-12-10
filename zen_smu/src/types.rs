@@ -110,7 +110,7 @@ impl CpuCodename {
             20 => CpuCodename::Raphael,       // 0x14 - Zen 4 desktop
             21 => CpuCodename::Phoenix,       // 0x15 - Zen 4 mobile
             22 => CpuCodename::StrixPoint,    // 0x16 - Zen 5 mobile
-            23 => CpuCodename::GraniteRidge,  // 0x17 - Zen 5 desktop (9950X!)
+            23 => CpuCodename::GraniteRidge,  // 0x17 - Zen 5 desktop
             24 => CpuCodename::HawkPoint,     // 0x18 - Zen 4 mobile refresh
             25 => CpuCodename::StormPeak,     // 0x19 - Threadripper 7000
             _ => CpuCodename::Unknown(value),
