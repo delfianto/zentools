@@ -342,5 +342,3 @@ Huge thanks to:
 ---
 
 Made with 🦀 and ❤️ in [Zed](https://zed.dev).
-
-_If your CPU becomes self-aware and starts mining Bitcoin without your permission, that's technically not our problem, but please open an issue anyway because that would be fascinating._
