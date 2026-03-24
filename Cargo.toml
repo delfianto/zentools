@@ -1,0 +1,28 @@
+[package]
+name = "zentools"
+version = "0.3.0"
+edition = "2024"
+authors = ["Delf <delf@example.com>"]
+license = "MIT"
+repository = "https://github.com/yourusername/zentools"
+keywords = ["amd", "ryzen", "zen", "epp", "smu"]
+categories = ["command-line-utilities", "hardware-support"]
+description = "AMD Ryzen CPU management utility - EPP and SMU monitoring"
+
+[[bin]]
+name = "zen"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+byteorder = "1"
+clap = { version = "4", features = ["derive"] }
+comfy-table = "7"
+ctrlc = "3"
+thiserror = "2"
+
+[profile.release]
+strip = true
+opt-level = 3
+lto = true
+codegen-units = 1
