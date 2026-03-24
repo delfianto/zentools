@@ -381,6 +381,11 @@ pub struct CoreMetrics {
     pub frequency_mhz: Option<f64>,
     pub activity_pct: Option<f64>,
     pub sleep_pct: Option<f64>,
+    pub voltage_v: Option<f64>,
+    pub temp_c: Option<f64>,
+    pub c0_pct: Option<f64>,
+    pub cc1_pct: Option<f64>,
+    pub cc6_pct: Option<f64>,
 }
 
 /// Unified CPU metrics from all available sources
@@ -413,8 +418,18 @@ pub struct CpuMetrics {
 
     // Clocks (PM table only)
     pub fclk_mhz: Option<f64>,
+    pub fclk_avg_mhz: Option<f64>,
     pub uclk_mhz: Option<f64>,
     pub mclk_mhz: Option<f64>,
+
+    // Additional voltages
+    pub vddp_v: Option<f64>,
+    pub vddg_v: Option<f64>,
+
+    // Derived
+    pub peak_core_freq_mhz: Option<f64>,
+    pub avg_core_voltage_v: Option<f64>,
+    pub soc_temp_c: Option<f64>,
 
     // Per-core data (PM table only)
     pub per_core: Vec<CoreMetrics>,
@@ -440,8 +455,14 @@ impl Default for CpuMetrics {
             edc_current_a: None,
             tjmax_c: None,
             fclk_mhz: None,
+            fclk_avg_mhz: None,
             uclk_mhz: None,
             mclk_mhz: None,
+            vddp_v: None,
+            vddg_v: None,
+            peak_core_freq_mhz: None,
+            avg_core_voltage_v: None,
+            soc_temp_c: None,
             per_core: Vec::new(),
         }
     }
@@ -969,8 +990,14 @@ mod tests {
         assert!(m.edc_current_a.is_none());
         assert!(m.tjmax_c.is_none());
         assert!(m.fclk_mhz.is_none());
+        assert!(m.fclk_avg_mhz.is_none());
         assert!(m.uclk_mhz.is_none());
         assert!(m.mclk_mhz.is_none());
+        assert!(m.vddp_v.is_none());
+        assert!(m.vddg_v.is_none());
+        assert!(m.peak_core_freq_mhz.is_none());
+        assert!(m.avg_core_voltage_v.is_none());
+        assert!(m.soc_temp_c.is_none());
         assert!(m.per_core.is_empty());
     }
 
@@ -986,6 +1013,11 @@ mod tests {
         assert!(cm.frequency_mhz.is_none());
         assert!(cm.activity_pct.is_none());
         assert!(cm.sleep_pct.is_none());
+        assert!(cm.voltage_v.is_none());
+        assert!(cm.temp_c.is_none());
+        assert!(cm.c0_pct.is_none());
+        assert!(cm.cc1_pct.is_none());
+        assert!(cm.cc6_pct.is_none());
     }
 
     // =========================================================================
