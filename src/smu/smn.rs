@@ -89,6 +89,11 @@ impl SmnReader {
         }
     }
 
+    /// Read a raw 32-bit SMN register at the given address
+    pub fn read_register(&self, address: u32) -> Result<u32, SmuError> {
+        read_smn_register(&self.pci_device, address)
+    }
+
     /// Read Tctl (control temperature) in degrees Celsius
     pub fn read_tctl(&self) -> Result<f64, SmuError> {
         let raw = read_smn_register(&self.pci_device, REPORTED_TEMP_CTRL)?;
