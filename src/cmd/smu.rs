@@ -474,12 +474,12 @@ fn display_monitor(
     hdr.load_preset(UTF8_FULL)
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_header(vec![
-            Cell::new(format!("zen monitor [{}]", metrics.source))
-                .set_alignment(CellAlignment::Center),
+            Cell::new("Zen Monitor").set_alignment(CellAlignment::Center),
             Cell::new("").set_alignment(CellAlignment::Center),
         ]);
 
     hdr.add_row(vec!["CPU", cpu_model]);
+    hdr.add_row(vec!["Detection Mode", &metrics.source.to_string()]);
     if let Some(info) = smu_info {
         hdr.add_row(vec!["Codename", info.codename.as_str()]);
         hdr.add_row(vec!["SMU", &info.version.to_string()]);
