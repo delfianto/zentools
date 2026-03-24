@@ -1,6 +1,7 @@
 //! Memory timing command handler and display
 
 use anyhow::Result;
+use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::{presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table};
 use zentools::smu::{driver, mem, smn};
 
@@ -25,87 +26,114 @@ pub fn handle(raw: bool) -> Result<()> {
 
     println!();
 
-    // ── Main table: header + all timing sections in one ──────────────────
-    let mut table = Table::new();
-    table
-        .load_preset(UTF8_FULL)
+    // ── Config table ─────────────────────────────────────────────────────
+    let mut info = Table::new();
+    info.load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec![Cell::new(format!(
-            "zen mem - {} Memory Timings ({} ch)",
-            config.mem_type, config.channels.len()
-        ))
-        .set_alignment(CellAlignment::Center)]);
+        .set_header(vec![
+            Cell::new(format!(
+                "{} Memory Timings ({} ch)",
+                config.mem_type,
+                config.channels.len()
+            ))
+            .set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+        ]);
 
-    table.add_row(vec![format!(
-        " Frequency: {:.0} MT/s   Ratio: {}   GDM: {}   Cmd: {}   PwrDn: {}",
-        t.frequency_mhz,
-        t.ratio,
-        if t.gdm { "On" } else { "Off" },
+    info.add_row(vec!["Frequency", &format!("{:.0} MT/s", t.frequency_mhz)]);
+    info.add_row(vec!["Ratio", &format!("{}", t.ratio)]);
+    info.add_row(vec![
+        "GDM",
+        if t.gdm { "Enabled" } else { "Disabled" },
+    ]);
+    info.add_row(vec![
+        "Command Rate",
         if t.cmd2t { "2T" } else { "1T" },
-        if t.power_down { "On" } else { "Off" },
-    )]);
+    ]);
+    info.add_row(vec![
+        "Power Down",
+        if t.power_down { "Enabled" } else { "Disabled" },
+    ]);
 
-    // Section helper: adds a section header + timing rows to the table
-    fn add_section(table: &mut Table, title: &str, rows: &[(&str, u32, &str, u32)]) {
-        table.add_row(vec![Cell::new(format!("  --- {} ---", title))
-            .set_alignment(CellAlignment::Center)]);
-        for (l1, v1, l2, v2) in rows {
-            table.add_row(vec![format!(
-                "    {:<12} {:>5}       {:<12} {:>5}",
-                l1, v1, l2, v2
-            )]);
+    // Channels
+    for ch in &config.channels {
+        let dimms = match (ch.dimm0_present, ch.dimm1_present) {
+            (true, true) => "Slot 0 + 1",
+            (true, false) => "Slot 0",
+            (false, true) => "Slot 1",
+            _ => "empty",
+        };
+        info.add_row(vec![
+            &format!("Channel {}", ch.channel_id),
+            &format!("{} ({:.0} MT/s)", dimms, ch.timings.frequency_mhz),
+        ]);
+    }
+
+    println!("{}", info);
+
+    // ── Timing table (4 columns, section names as label rows) ────────────
+    let mut tim = Table::new();
+    tim.load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Timing").set_alignment(CellAlignment::Left),
+            Cell::new("Value").set_alignment(CellAlignment::Right),
+            Cell::new("Timing").set_alignment(CellAlignment::Left),
+            Cell::new("Value").set_alignment(CellAlignment::Right),
+        ]);
+
+    // Helper: add a section label row + data rows
+    fn section(table: &mut Table, label: &str, rows: &[(&str, u32, &str, u32)]) {
+        table.add_row(vec![
+            Cell::new(label).set_alignment(CellAlignment::Left),
+            Cell::new(""),
+            Cell::new(""),
+            Cell::new(""),
+        ]);
+        for &(l1, v1, l2, v2) in rows {
+            table.add_row(vec![
+                Cell::new(format!("  {}", l1)).set_alignment(CellAlignment::Left),
+                Cell::new(v1).set_alignment(CellAlignment::Right),
+                Cell::new(format!("  {}", l2)).set_alignment(CellAlignment::Left),
+                Cell::new(v2).set_alignment(CellAlignment::Right),
+            ]);
         }
     }
 
-    add_section(&mut table, "Primary", &[
+    section(&mut tim, "PRIMARY", &[
         ("tCL", t.tcl, "tRAS", t.tras),
         ("tRCDRD", t.trcdrd, "tRC", t.trc),
         ("tRCDWR", t.trcdwr, "tRP", t.trp),
     ]);
-    add_section(&mut table, "Secondary", &[
+    section(&mut tim, "SECONDARY", &[
         ("tRRDS", t.trrds, "tRRDL", t.trrdl),
         ("tFAW", t.tfaw, "tWTRS", t.twtrs),
         ("tWTRL", t.twtrl, "tWR", t.twr),
         ("tCWL", t.tcwl, "tRTP", t.trtp),
     ]);
-    add_section(&mut table, "Tertiary", &[
+    section(&mut tim, "TERTIARY", &[
         ("tRDRDSCL", t.trdrdscl, "tWRWRSCL", t.twrwrscl),
         ("tRDRDSC", t.trdrdsc, "tWRWRSC", t.twrwrsc),
         ("tRDRDSD", t.trdrdsd, "tWRWRSD", t.twrwrsd),
         ("tRDRDDD", t.trdrddd, "tWRWRDD", t.twrwrdd),
         ("tRDWR", t.trdwr, "tWRRD", t.twrrd),
     ]);
-    add_section(&mut table, "Refresh", &[
+    section(&mut tim, "REFRESH", &[
         ("tRFC", t.trfc, "tRFC2", t.trfc2),
         ("tRFC4", t.trfc4, "tREFI", t.trefi),
     ]);
 
-    // Channels
-    if config.channels.len() > 1 {
-        table.add_row(vec![Cell::new("  --- Channels ---")
-            .set_alignment(CellAlignment::Center)]);
-        for ch in &config.channels {
-            let dimms = match (ch.dimm0_present, ch.dimm1_present) {
-                (true, true) => "Slot 0 + 1",
-                (true, false) => "Slot 0",
-                (false, true) => "Slot 1",
-                _ => "empty",
-            };
-            table.add_row(vec![format!(
-                "    Ch {}   {:<14}  {:.0} MT/s",
-                ch.channel_id, dimms, ch.timings.frequency_mhz
-            )]);
-        }
-    }
+    println!("{}", tim);
 
-    println!("{}", table);
-
-    // ── Raw registers (separate table) ───────────────────────────────────
+    // ── Raw registers ────────────────────────────────────────────────────
     if raw {
         let base = ch.channel_id << 20;
         let mut raw_table = Table::new();
         raw_table
             .load_preset(UTF8_FULL)
+            .apply_modifier(UTF8_ROUND_CORNERS)
             .set_content_arrangement(ContentArrangement::Dynamic)
             .set_header(vec![
                 Cell::new("Address").set_alignment(CellAlignment::Center),
