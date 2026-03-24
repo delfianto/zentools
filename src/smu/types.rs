@@ -263,6 +263,19 @@ impl CpuCodename {
             CpuCodename::StrixPoint | CpuCodename::GraniteRidge
         )
     }
+
+    /// Check if this CPU uses DDR5 (Zen 4 and newer)
+    pub fn is_ddr5(&self) -> bool {
+        matches!(
+            self,
+            CpuCodename::Raphael
+                | CpuCodename::Phoenix
+                | CpuCodename::HawkPoint
+                | CpuCodename::StormPeak
+                | CpuCodename::StrixPoint
+                | CpuCodename::GraniteRidge
+        )
+    }
 }
 
 /// SMU firmware version

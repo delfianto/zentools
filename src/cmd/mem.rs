@@ -5,19 +5,31 @@ use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::{presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table};
 use zentools::smu::{driver, mem, smn};
 
-const TABLE_WIDTH: u16 = 48;
-
 pub fn handle(raw: bool) -> Result<()> {
-    let is_zen5 = driver::read_info()
+    let smu_info = driver::read_info().ok();
+
+    let is_zen5 = smu_info
+        .as_ref()
         .map(|i| i.codename.is_zen5())
         .unwrap_or(false);
+
+    // Determine DDR type from CPU generation (register probing is unreliable)
+    let mem_type = if smu_info
+        .as_ref()
+        .map(|i| i.codename.is_ddr5())
+        .unwrap_or(false)
+    {
+        mem::MemType::DDR5
+    } else {
+        mem::MemType::DDR4
+    };
 
     let smn_reader = smn::SmnReader::new(is_zen5);
     if !smn_reader.is_available() {
         anyhow::bail!("SMN access not available. Requires root and PCI config access.");
     }
 
-    let config = mem::read_mem_config(&smn_reader)?;
+    let config = mem::read_mem_config(&smn_reader, mem_type)?;
 
     if config.channels.is_empty() {
         anyhow::bail!("No memory channels detected");
@@ -33,35 +45,39 @@ pub fn handle(raw: bool) -> Result<()> {
     info.load_preset(UTF8_FULL)
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_width(TABLE_WIDTH)
         .set_header(vec![
             Cell::new("Memory Info").set_alignment(CellAlignment::Center),
             Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
         ]);
 
-    info.add_row(vec!["Type", &config.mem_type.to_string()]);
     info.add_row(vec![
-        "Channels",
-        &format!("{}", config.channels.len()),
+        Cell::new("Type"),
+        Cell::new(config.mem_type.to_string()),
+        Cell::new("Channels"),
+        Cell::new(config.channels.len().to_string()),
     ]);
     info.add_row(vec![
-        "Frequency",
-        &format!("{:.0} MT/s", t.frequency_mhz),
-    ]);
-    info.add_row(vec!["Ratio", &format!("{}", t.ratio)]);
-    info.add_row(vec![
-        "GDM",
-        if t.gdm { "Enabled" } else { "Disabled" },
+        Cell::new("Frequency"),
+        Cell::new(format!("{:.0} MT/s", t.frequency_mhz)),
+        Cell::new("Ratio"),
+        Cell::new(t.ratio.to_string()),
     ]);
     info.add_row(vec![
-        "Command Rate",
-        if t.cmd2t { "2T" } else { "1T" },
+        Cell::new("GDM"),
+        Cell::new(if t.gdm { "Enabled" } else { "Disabled" }),
+        Cell::new("Cmd Rate"),
+        Cell::new(if t.cmd2t { "2T" } else { "1T" }),
     ]);
     info.add_row(vec![
-        "Power Down",
-        if t.power_down { "Enabled" } else { "Disabled" },
+        Cell::new("Power Down"),
+        Cell::new(if t.power_down { "On" } else { "Off" }),
+        Cell::new(""),
+        Cell::new(""),
     ]);
 
+    // Channel rows
     for ch in &config.channels {
         let dimms = match (ch.dimm0_present, ch.dimm1_present) {
             (true, true) => "Slot 0 + 1",
@@ -70,8 +86,10 @@ pub fn handle(raw: bool) -> Result<()> {
             _ => "empty",
         };
         info.add_row(vec![
-            &format!("Ch {}", ch.channel_id),
-            dimms,
+            Cell::new(format!("Ch {}", ch.channel_id)),
+            Cell::new(dimms),
+            Cell::new("Speed"),
+            Cell::new(format!("{:.0} MT/s", ch.timings.frequency_mhz)),
         ]);
     }
 
@@ -82,7 +100,6 @@ pub fn handle(raw: bool) -> Result<()> {
     tim.load_preset(UTF8_FULL)
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_width(TABLE_WIDTH)
         .set_header(vec![
             Cell::new("Timing").set_alignment(CellAlignment::Left),
             Cell::new("Val").set_alignment(CellAlignment::Right),
@@ -92,16 +109,16 @@ pub fn handle(raw: bool) -> Result<()> {
 
     fn section(table: &mut Table, label: &str, rows: &[(&str, u32, &str, u32)]) {
         table.add_row(vec![
-            Cell::new(label).set_alignment(CellAlignment::Left),
+            Cell::new(label),
             Cell::new(""),
             Cell::new(""),
             Cell::new(""),
         ]);
         for &(l1, v1, l2, v2) in rows {
             table.add_row(vec![
-                Cell::new(format!("  {}", l1)).set_alignment(CellAlignment::Left),
+                Cell::new(l1).set_alignment(CellAlignment::Left),
                 Cell::new(v1).set_alignment(CellAlignment::Right),
-                Cell::new(format!("  {}", l2)).set_alignment(CellAlignment::Left),
+                Cell::new(l2).set_alignment(CellAlignment::Left),
                 Cell::new(v2).set_alignment(CellAlignment::Right),
             ]);
         }
@@ -140,7 +157,6 @@ pub fn handle(raw: bool) -> Result<()> {
             .load_preset(UTF8_FULL)
             .apply_modifier(UTF8_ROUND_CORNERS)
             .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_width(TABLE_WIDTH)
             .set_header(vec![
                 Cell::new("Addr").set_alignment(CellAlignment::Center),
                 Cell::new("Value").set_alignment(CellAlignment::Center),
