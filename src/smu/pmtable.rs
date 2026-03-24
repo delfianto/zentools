@@ -83,30 +83,62 @@ const ZEN2_CORE: Zen2CoreOffsets = Zen2CoreOffsets {
 };
 
 // =============================================================================
+// Zen 4 PM table field map (versions 0x480xxx)
+// Offsets from ryzen_smu_hwmon (verified on Ryzen 9 7950X3D)
+// Source: https://github.com/FrozenGalaxy/ryzen_smu_hwmon
+// =============================================================================
+
+const ZEN4_FIELDS: &[PmTableField] = &[
+    // Voltage
+    PmTableField { name: "Vcore", offset: 0x048, data_type: FieldType::F32, unit: "V" },
+    // Power
+    PmTableField { name: "SoC Power", offset: 0x0D8, data_type: FieldType::F32, unit: "W" },
+    PmTableField { name: "Package Power", offset: 0x0DC, data_type: FieldType::F32, unit: "W" },
+    // Voltage (SoC)
+    PmTableField { name: "VSOC", offset: 0x148, data_type: FieldType::F32, unit: "V" },
+    // Temperature
+    PmTableField { name: "Tctl", offset: 0x454, data_type: FieldType::F32, unit: "C" },
+];
+
+/// Per-core field offsets for Zen 4 (stride: 4 bytes per core, up to 16 cores)
+/// From ryzen_smu_hwmon (verified on 7950X3D)
+#[allow(dead_code)] // ccd_temp_base reserved for CCD-level temperature parsing
+struct Zen4CoreOffsets {
+    temp_base: usize,
+    power_base: usize,
+    ccd_temp_base: usize,
+}
+
+const ZEN4_CORE: Zen4CoreOffsets = Zen4CoreOffsets {
+    temp_base: 0x514,
+    power_base: 0x554,
+    ccd_temp_base: 0x534,
+};
+
+// =============================================================================
 // Zen 5 PM table field map (versions 0x620xxx)
-// WARNING: These offsets are EXPERIMENTAL and partially mapped.
-// The first section (PBO limits) is likely similar to Zen 2/3, but
-// offsets beyond ~0x30 are UNVERIFIED for Zen 5.
+// WARNING: UNVERIFIED. Zen 4 showed that offsets shift drastically between
+// generations — these are best-effort guesses and WILL produce garbage if wrong.
+// Use `zen smu pm-table -f --raw` to reverse-engineer actual offsets.
 // =============================================================================
 
 const ZEN5_FIELDS: &[PmTableField] = &[
-    // PBO Limits — likely at same offsets as Zen 2/3 (needs verification)
-    PmTableField { name: "PPT Limit", offset: 0x000, data_type: FieldType::F32, unit: "W" },
-    PmTableField { name: "PPT Current", offset: 0x004, data_type: FieldType::F32, unit: "W" },
-    PmTableField { name: "TDC Limit", offset: 0x008, data_type: FieldType::F32, unit: "A" },
-    PmTableField { name: "TDC Current", offset: 0x00C, data_type: FieldType::F32, unit: "A" },
-    PmTableField { name: "TjMax", offset: 0x010, data_type: FieldType::F32, unit: "C" },
-    PmTableField { name: "Tctl", offset: 0x014, data_type: FieldType::F32, unit: "C" },
-    PmTableField { name: "EDC Limit", offset: 0x020, data_type: FieldType::F32, unit: "A" },
-    PmTableField { name: "EDC Current", offset: 0x024, data_type: FieldType::F32, unit: "A" },
+    // These offsets are speculative — Zen 4 moved Tctl from 0x014 to 0x454,
+    // so Zen 5 offsets are likely different again. Only use as starting point.
+    PmTableField { name: "PPT Limit (?)", offset: 0x000, data_type: FieldType::F32, unit: "W" },
+    PmTableField { name: "PPT Current (?)", offset: 0x004, data_type: FieldType::F32, unit: "W" },
+    PmTableField { name: "TDC Limit (?)", offset: 0x008, data_type: FieldType::F32, unit: "A" },
+    PmTableField { name: "TDC Current (?)", offset: 0x00C, data_type: FieldType::F32, unit: "A" },
 ];
 
 /// Get the field map for a given PM table version
 pub fn get_field_map(version: u32) -> Option<&'static [PmTableField]> {
     match version {
-        // Zen 2 (Matisse, Castle Peak)
+        // Zen 2/3 (Matisse, Castle Peak, Vermeer)
         0x240903 | 0x240802 | 0x240803 => Some(ZEN2_FIELDS),
-        // Zen 5 (Granite Ridge) — partial mapping
+        // Zen 4 (Raphael) — from ryzen_smu_hwmon
+        0x480804 | 0x480805 | 0x480904 => Some(ZEN4_FIELDS),
+        // Zen 5 (Granite Ridge) — unverified guesses
         0x620105 | 0x620205 => Some(ZEN5_FIELDS),
         _ => None,
     }
@@ -114,12 +146,25 @@ pub fn get_field_map(version: u32) -> Option<&'static [PmTableField]> {
 
 /// Check if a PM table version has per-core field mappings
 pub fn has_per_core_fields(version: u32) -> bool {
-    matches!(version, 0x240903 | 0x240802 | 0x240803)
+    matches!(
+        version,
+        0x240903 | 0x240802 | 0x240803 | 0x480804 | 0x480805 | 0x480904
+    )
 }
 
 /// Check if the PM table version mapping is experimental (incomplete)
 pub fn is_experimental(version: u32) -> bool {
     matches!(version, 0x620105 | 0x620205)
+}
+
+/// Get the generation label for a PM table version
+pub fn version_generation(version: u32) -> &'static str {
+    match version {
+        0x240903 | 0x240802 | 0x240803 => "Zen 2/3",
+        0x480804 | 0x480805 | 0x480904 => "Zen 4",
+        0x620105 | 0x620205 => "Zen 5",
+        _ => "Unknown",
+    }
 }
 
 /// Parse a PM table into structured metrics
@@ -147,19 +192,20 @@ pub fn parse_pm_table(pm_table: &PmTableData) -> CpuMetrics {
         };
 
         match field.name {
-            "PPT Limit" => metrics.ppt_limit_w = Some(value),
-            "PPT Current" => metrics.ppt_current_w = Some(value),
-            "TDC Limit" => metrics.tdc_limit_a = Some(value),
-            "TDC Current" => metrics.tdc_current_a = Some(value),
+            "PPT Limit" | "PPT Limit (?)" => metrics.ppt_limit_w = Some(value),
+            "PPT Current" | "PPT Current (?)" => metrics.ppt_current_w = Some(value),
+            "TDC Limit" | "TDC Limit (?)" => metrics.tdc_limit_a = Some(value),
+            "TDC Current" | "TDC Current (?)" => metrics.tdc_current_a = Some(value),
             "TjMax" => metrics.tjmax_c = Some(value),
             "Tctl" => metrics.tctl_temp_c = Some(value),
             "EDC Limit" => metrics.edc_limit_a = Some(value),
             "EDC Current" => metrics.edc_current_a = Some(value),
-            "SVI2 Voltage" => metrics.core_voltage_v = Some(value),
+            "SVI2 Voltage" | "Vcore" => metrics.core_voltage_v = Some(value),
             "Core Power" => metrics.core_power_w = Some(value),
+            "Package Power" => metrics.package_power_w = Some(value),
             "SoC Power" => metrics.soc_power_w = Some(value),
             "Peak Voltage" => metrics.peak_voltage_v = Some(value),
-            "SoC Voltage" => metrics.soc_voltage_v = Some(value),
+            "SoC Voltage" | "VSOC" => metrics.soc_voltage_v = Some(value),
             "SoC Current" => {}
             "FCLK" => metrics.fclk_mhz = Some(value),
             "FCLK Avg" => metrics.fclk_avg_mhz = Some(value),
@@ -173,7 +219,10 @@ pub fn parse_pm_table(pm_table: &PmTableData) -> CpuMetrics {
 
     // Parse per-core data for versions that have it
     if has_per_core_fields(pm_table.version) {
-        metrics.per_core = parse_per_core_zen2(pm_table);
+        metrics.per_core = match pm_table.version {
+            0x480804 | 0x480805 | 0x480904 => parse_per_core_zen4(pm_table),
+            _ => parse_per_core_zen2(pm_table),
+        };
 
         // Derive peak frequency and average voltage from per-core data
         let mut max_freq: f64 = 0.0;
@@ -252,6 +301,36 @@ fn parse_per_core_zen2(pm_table: &PmTableData) -> Vec<CoreMetrics> {
     cores
 }
 
+/// Parse per-core metrics from a Zen 4 PM table (Raphael)
+/// Offsets from ryzen_smu_hwmon — only power and temperature are mapped
+fn parse_per_core_zen4(pm_table: &PmTableData) -> Vec<CoreMetrics> {
+    let mut cores = Vec::new();
+
+    for i in 0..MAX_CORES {
+        let power = pm_table
+            .read_f32(ZEN4_CORE.power_base + i * 4)
+            .map(|v| v as f64);
+
+        // Stop at first core with no power data (0.0 means unused)
+        match power {
+            Some(p) if p.is_finite() && p > 0.001 => {}
+            _ => break,
+        }
+
+        cores.push(CoreMetrics {
+            core_id: i as u32,
+            power_w: power,
+            temp_c: pm_table
+                .read_f32(ZEN4_CORE.temp_base + i * 4)
+                .map(|v| v as f64),
+            // Zen 4 hwmon doesn't map frequency/voltage/C-states per core in PM table
+            ..Default::default()
+        });
+    }
+
+    cores
+}
+
 /// Dump all named fields from a PM table as (name, value, unit) tuples
 pub fn dump_named_fields(pm_table: &PmTableData) -> Vec<(&'static str, f64, &'static str)> {
     let fields = match get_field_map(pm_table.version) {
@@ -304,6 +383,13 @@ mod tests {
     }
 
     #[test]
+    fn test_get_field_map_zen4_versions() {
+        assert!(get_field_map(0x480804).is_some());
+        assert!(get_field_map(0x480805).is_some());
+        assert!(get_field_map(0x480904).is_some());
+    }
+
+    #[test]
     fn test_get_field_map_zen5_versions() {
         assert!(get_field_map(0x620105).is_some());
         assert!(get_field_map(0x620205).is_some());
@@ -321,7 +407,7 @@ mod tests {
     fn test_get_field_map_zen2_has_more_fields_than_zen5() {
         let zen2 = get_field_map(0x240903).unwrap();
         let zen5 = get_field_map(0x620205).unwrap();
-        assert!(zen2.len() > zen5.len(), "Zen 2 should have more mapped fields than experimental Zen 5");
+        assert!(zen2.len() > zen5.len());
     }
 
     // =========================================================================
@@ -342,8 +428,22 @@ mod tests {
     }
 
     #[test]
+    fn test_is_not_experimental_zen4() {
+        assert!(!is_experimental(0x480804));
+        assert!(!is_experimental(0x480805));
+    }
+
+    #[test]
     fn test_is_not_experimental_unknown() {
         assert!(!is_experimental(0x999999));
+    }
+
+    #[test]
+    fn test_version_generation() {
+        assert_eq!(version_generation(0x240903), "Zen 2/3");
+        assert_eq!(version_generation(0x480804), "Zen 4");
+        assert_eq!(version_generation(0x620205), "Zen 5");
+        assert_eq!(version_generation(0x999999), "Unknown");
     }
 
     // =========================================================================
@@ -355,6 +455,13 @@ mod tests {
         assert!(has_per_core_fields(0x240903));
         assert!(has_per_core_fields(0x240802));
         assert!(has_per_core_fields(0x240803));
+    }
+
+    #[test]
+    fn test_has_per_core_fields_zen4() {
+        assert!(has_per_core_fields(0x480804));
+        assert!(has_per_core_fields(0x480805));
+        assert!(has_per_core_fields(0x480904));
     }
 
     #[test]
@@ -404,7 +511,7 @@ mod tests {
     #[test]
     fn test_field_units_valid() {
         let valid_units = ["W", "A", "C", "V", "MHz"];
-        for version in [0x240903u32, 0x620205] {
+        for version in [0x240903u32, 0x480804, 0x620205] {
             if let Some(fields) = get_field_map(version) {
                 for field in fields {
                     assert!(
@@ -420,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_field_names_non_empty() {
-        for version in [0x240903u32, 0x240802, 0x620105, 0x620205] {
+        for version in [0x240903u32, 0x240802, 0x480804, 0x480805, 0x620105, 0x620205] {
             if let Some(fields) = get_field_map(version) {
                 for field in fields {
                     assert!(!field.name.is_empty());
@@ -497,18 +604,19 @@ mod tests {
     #[test]
     fn test_parse_pm_table_zen5_pbo_limits() {
         let pt = make_pm_table(0x620205, 0x994, &[
-            (0x000, 200.0),  // PPT Limit
-            (0x004, 150.0),  // PPT Current
-            (0x010, 95.0),   // TjMax
-            (0x014, 68.0),   // Tctl
+            (0x000, 200.0),  // PPT Limit (?)
+            (0x004, 150.0),  // PPT Current (?)
+            (0x008, 160.0),  // TDC Limit (?)
+            (0x00C, 45.0),   // TDC Current (?)
         ]);
 
         let metrics = parse_pm_table(&pt);
         assert_eq!(metrics.source, MetricsSource::PmTable);
+        // These are speculative offsets — the (?) suffix still maps to the same metrics
         assert!((metrics.ppt_limit_w.unwrap() - 200.0).abs() < 0.1);
         assert!((metrics.ppt_current_w.unwrap() - 150.0).abs() < 0.1);
-        assert!((metrics.tjmax_c.unwrap() - 95.0).abs() < 0.1);
-        assert!((metrics.tctl_temp_c.unwrap() - 68.0).abs() < 0.1);
+        assert!((metrics.tdc_limit_a.unwrap() - 160.0).abs() < 0.1);
+        assert!((metrics.tdc_current_a.unwrap() - 45.0).abs() < 0.1);
     }
 
     #[test]
@@ -720,28 +828,80 @@ mod tests {
     }
 
     // =========================================================================
-    // Cross-version consistency
+    // Zen 4 parsing
     // =========================================================================
 
     #[test]
-    fn test_zen2_zen5_share_pbo_offsets() {
-        // The first few PBO fields should be at the same offsets
-        let zen2 = get_field_map(0x240903).unwrap();
-        let zen5 = get_field_map(0x620205).unwrap();
+    fn test_parse_pm_table_zen4_basic() {
+        let pt = make_pm_table(0x480804, 0x600, &[
+            (0x048, 1.325),    // Vcore
+            (0x0D8, 12.5),     // SoC Power
+            (0x0DC, 88.0),     // Package Power
+            (0x148, 1.1),      // VSOC
+            (0x454, 72.3),     // Tctl
+        ]);
 
-        let common_names = ["PPT Limit", "PPT Current", "TDC Limit", "TDC Current", "TjMax", "Tctl"];
+        let metrics = parse_pm_table(&pt);
+        assert_eq!(metrics.source, MetricsSource::PmTable);
+        assert!((metrics.core_voltage_v.unwrap() - 1.325).abs() < 0.01);
+        assert!((metrics.soc_power_w.unwrap() - 12.5).abs() < 0.1);
+        assert!((metrics.package_power_w.unwrap() - 88.0).abs() < 0.1);
+        assert!((metrics.soc_voltage_v.unwrap() - 1.1).abs() < 0.01);
+        assert!((metrics.tctl_temp_c.unwrap() - 72.3).abs() < 0.1);
+    }
 
-        for name in &common_names {
-            let z2 = zen2.iter().find(|f| f.name == *name);
-            let z5 = zen5.iter().find(|f| f.name == *name);
-            assert!(z2.is_some(), "Zen 2 missing field '{}'", name);
-            assert!(z5.is_some(), "Zen 5 missing field '{}'", name);
-            assert_eq!(
-                z2.unwrap().offset,
-                z5.unwrap().offset,
-                "field '{}' offset mismatch between Zen 2 and Zen 5",
-                name
+    #[test]
+    fn test_parse_per_core_zen4() {
+        let mut data = vec![0u8; 0x600];
+
+        // Set up 4 cores with power and temperature
+        for i in 0..4u32 {
+            let power = 5.0 + (i as f32) * 3.0;
+            let temp = 55.0 + (i as f32) * 2.0;
+            let off = (i as usize) * 4;
+            data[0x554 + off..0x558 + off].copy_from_slice(&power.to_le_bytes());
+            data[0x514 + off..0x518 + off].copy_from_slice(&temp.to_le_bytes());
+        }
+
+        let pt = PmTableData { version: 0x480804, data };
+        let metrics = parse_pm_table(&pt);
+
+        assert_eq!(metrics.per_core.len(), 4);
+        assert!((metrics.per_core[0].power_w.unwrap() - 5.0).abs() < 0.1);
+        assert!((metrics.per_core[0].temp_c.unwrap() - 55.0).abs() < 0.1);
+        assert!((metrics.per_core[3].power_w.unwrap() - 14.0).abs() < 0.1);
+        assert!((metrics.per_core[3].temp_c.unwrap() - 61.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_zen4_fields_offsets_ascending() {
+        let fields = get_field_map(0x480804).unwrap();
+        for window in fields.windows(2) {
+            assert!(
+                window[0].offset < window[1].offset,
+                "Zen 4 fields should be ascending: {} (0x{:x}) >= {} (0x{:x})",
+                window[0].name, window[0].offset, window[1].name, window[1].offset
             );
         }
+    }
+
+    // =========================================================================
+    // Cross-version: offsets differ between generations
+    // =========================================================================
+
+    #[test]
+    fn test_zen2_zen4_tctl_at_different_offsets() {
+        let zen2 = get_field_map(0x240903).unwrap();
+        let zen4 = get_field_map(0x480804).unwrap();
+
+        let zen2_tctl = zen2.iter().find(|f| f.name == "Tctl").unwrap();
+        let zen4_tctl = zen4.iter().find(|f| f.name == "Tctl").unwrap();
+
+        assert_ne!(
+            zen2_tctl.offset, zen4_tctl.offset,
+            "Tctl should be at different offsets between Zen 2 and Zen 4"
+        );
+        assert_eq!(zen2_tctl.offset, 0x014);
+        assert_eq!(zen4_tctl.offset, 0x454);
     }
 }
