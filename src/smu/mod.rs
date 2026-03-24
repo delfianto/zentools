@@ -6,6 +6,7 @@
 //! - **Tier 3**: Graceful fallback with partial data
 
 pub mod driver;
+pub mod mem;
 pub mod msr;
 pub mod pmtable;
 pub mod smn;

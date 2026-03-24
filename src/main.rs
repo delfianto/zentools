@@ -11,7 +11,7 @@ use comfy_table::{presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, T
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use zentools::epp::{EppManager, EppProfile};
-use zentools::smu::{self, driver, msr, pmtable, smn, CpuMetrics, SMU_DRV_PATH};
+use zentools::smu::{self, driver, mem, msr, pmtable, smn, CpuMetrics, SMU_DRV_PATH};
 
 // =============================================================================
 // CLI Definitions
@@ -46,6 +46,13 @@ enum Commands {
     Smu {
         #[command(subcommand)]
         command: SmuCommands,
+    },
+
+    /// Show DDR4/DDR5 memory timings (like ZenTimings for Linux)
+    Mem {
+        /// Show raw register values alongside parsed timings
+        #[arg(short, long)]
+        raw: bool,
     },
 }
 
@@ -129,6 +136,7 @@ fn main() {
     let result = match binary_name.as_str() {
         "epp" => run_epp_personality(),
         "smu" => run_smu_personality(),
+        "mem" => handle_mem(std::env::args().any(|a| a == "--raw" || a == "-r")),
         _ => run_full(),
     };
 
@@ -162,6 +170,7 @@ fn run_full() -> Result<()> {
     match cli.command {
         Some(Commands::Epp { command }) => handle_epp_command(command),
         Some(Commands::Smu { command }) => handle_smu_command(command),
+        Some(Commands::Mem { raw }) => handle_mem(raw),
         None => {
             Cli::command().print_help()?;
             Ok(())
@@ -627,6 +636,128 @@ fn handle_smu_monitor(interval: u64) -> Result<()> {
 }
 
 // =============================================================================
+// Memory Handlers
+// =============================================================================
+
+fn handle_mem(raw: bool) -> Result<()> {
+    let is_zen5 = driver::read_info()
+        .map(|i| i.codename.is_zen5())
+        .unwrap_or(false);
+
+    let smn_reader = smn::SmnReader::new(is_zen5);
+    if !smn_reader.is_available() {
+        anyhow::bail!("SMN access not available. Requires root and PCI config access.");
+    }
+
+    let config = mem::read_mem_config(&smn_reader)?;
+
+    if config.channels.is_empty() {
+        anyhow::bail!("No memory channels detected");
+    }
+
+    let w = 74;
+    let sep = "=".repeat(w);
+    let line = "-".repeat(w);
+
+    println!("{}", sep);
+    println!(" zen mem — Memory Timings ({}, {} channel(s))",
+        config.mem_type, config.channels.len());
+    println!("{}", sep);
+
+    // Use first channel as representative (they should be identical for matched DIMMs)
+    let ch = &config.channels[0];
+    let t = &ch.timings;
+
+    // Header
+    println!(" Frequency         {:.0} MT/s (ratio: {})", t.frequency_mhz, t.ratio);
+    println!(" GDM               {}", if t.gdm { "Enabled" } else { "Disabled" });
+    println!(" Cmd2T             {}", if t.cmd2t { "2T" } else { "1T" });
+    println!(" Power Down        {}", if t.power_down { "Enabled" } else { "Disabled" });
+
+    // Primary timings
+    println!("{}", line);
+    println!(" PRIMARY TIMINGS");
+    println!("{}", line);
+    println!("   tCL              {:>3}          tRCDRD          {:>3}", t.tcl, t.trcdrd);
+    println!("   tRCDWR           {:>3}          tRP             {:>3}", t.trcdwr, t.trp);
+    println!("   tRAS             {:>3}          tRC             {:>3}", t.tras, t.trc);
+
+    // Secondary timings
+    println!("{}", line);
+    println!(" SECONDARY TIMINGS");
+    println!("{}", line);
+    println!("   tRRDS            {:>3}          tRRDL           {:>3}", t.trrds, t.trrdl);
+    println!("   tFAW             {:>3}          tWTRS           {:>3}", t.tfaw, t.twtrs);
+    println!("   tWTRL            {:>3}          tWR             {:>3}", t.twtrl, t.twr);
+    println!("   tCWL             {:>3}          tRTP            {:>3}", t.tcwl, t.trtp);
+
+    // Tertiary timings
+    println!("{}", line);
+    println!(" TERTIARY TIMINGS");
+    println!("{}", line);
+    println!("   tRDRDSCL         {:>3}          tWRWRSCL        {:>3}", t.trdrdscl, t.twrwrscl);
+    println!("   tRDRDSC          {:>3}          tWRWRSC         {:>3}", t.trdrdsc, t.twrwrsc);
+    println!("   tRDRDSD          {:>3}          tWRWRSD         {:>3}", t.trdrdsd, t.twrwrsd);
+    println!("   tRDRDDD          {:>3}          tWRWRDD         {:>3}", t.trdrddd, t.twrwrdd);
+    println!("   tRDWR            {:>3}          tWRRD           {:>3}", t.trdwr, t.twrrd);
+
+    // Refresh
+    println!("{}", line);
+    println!(" REFRESH");
+    println!("{}", line);
+    println!("   tRFC             {:>4}          tRFC2           {:>4}", t.trfc, t.trfc2);
+    println!("   tRFC4            {:>4}          tREFI           {:>5}", t.trfc4, t.trefi);
+
+    // Channel details
+    if config.channels.len() > 1 {
+        println!("{}", line);
+        println!(" CHANNELS");
+        println!("{}", line);
+        for ch in &config.channels {
+            let dimms = match (ch.dimm0_present, ch.dimm1_present) {
+                (true, true) => "DIMM0 + DIMM1",
+                (true, false) => "DIMM0",
+                (false, true) => "DIMM1",
+                _ => "empty",
+            };
+            println!("   Channel {:>2}        {} ({:.0} MT/s)", ch.channel_id, dimms, ch.timings.frequency_mhz);
+        }
+    }
+
+    if raw {
+        println!("{}", line);
+        println!(" RAW REGISTERS (Channel 0, base 0x{:06X})", (ch.channel_id as u32) << 20);
+        println!("{}", line);
+        // Re-read and display raw values
+        let base = (ch.channel_id as u32) << 20;
+        let regs = [
+            (UMC_CFG_LABEL, 0x50200u32),
+            ("TIM0 (CL/RAS/RCD)", 0x50204),
+            ("TIM1 (RC/RP)", 0x50208),
+            ("TIM2 (RRDS/RRDL/RTP)", 0x5020C),
+            ("TIM3 (FAW)", 0x50210),
+            ("TIM4 (CWL/WTRS/WTRL)", 0x50214),
+            ("TIM5 (WR)", 0x50218),
+            ("TIM6 (RDRD*)", 0x50220),
+            ("TIM7 (WRWR*)", 0x50224),
+            ("TIM8 (WRRD/RDWR)", 0x50228),
+            ("REFI", 0x50230),
+            ("RFC", 0x50260),
+        ];
+        for (label, addr) in regs {
+            if let Ok(val) = smn_reader.read_register(base | addr) {
+                println!("   0x{:05X}  0x{:08X}  {}", addr, val, label);
+            }
+        }
+    }
+
+    println!("{}", sep);
+    Ok(())
+}
+
+const UMC_CFG_LABEL: &str = "CFG (ratio/GDM/2T)";
+
+// =============================================================================
 // Display Functions
 // =============================================================================
 
@@ -923,11 +1054,15 @@ EXAMPLES:
     zen smu monitor                 # Live CPU monitoring
     zen smu monitor -i 2            # Monitor every 2 seconds
     zen smu pm-table --force        # Read PM table (force if unsupported)
-    zen smu pm-table --force --raw  # Show raw PM table data
+
+    # Memory Timings (ZenTimings for Linux)
+    zen mem                         # Show DDR4/DDR5 timings
+    zen mem --raw                   # Include raw register values
 
     # Busybox-style (symlinks created by `just install`)
     epp show                        # Same as `zen epp show`
     smu info                        # Same as `zen smu info`
+    mem                             # Same as `zen mem`
 
 EPP PROFILES:
     -p0 / performance         - Maximum performance, higher power usage
