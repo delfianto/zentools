@@ -25,8 +25,8 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    /// Shorthand for EPP performance level (0-3)
-    #[arg(short = 'p', value_name = "LEVEL", global = true)]
+    /// EPP performance level: -p0 -p1 -p2 -p3
+    #[arg(short = 'p', value_name = "0-3", global = true)]
     perf_level: Option<u8>,
 
     /// Show EPP status
@@ -680,7 +680,8 @@ EXAMPLES:
     # EPP Management
     zen epp show                    # Show current EPP settings
     zen epp performance             # Set to performance mode
-    zen -p 2                        # Quick set to level 2 (balance-power)
+    zen -p0                         # Quick set to performance
+    zen -p2                         # Quick set to balance-power
     zen -s                          # Quick show EPP status
 
     # SMU Information
@@ -696,10 +697,10 @@ EXAMPLES:
     smu info                        # Same as `zen smu info`
 
 EPP PROFILES:
-    0 / performance         - Maximum performance, higher power usage
-    1 / balance-performance - Balanced, leaning toward performance (default)
-    2 / balance-power       - Balanced, leaning toward power saving
-    3 / power               - Maximum power saving, may limit performance
+    -p0 / performance         - Maximum performance, higher power usage
+    -p1 / balance-performance - Balanced, leaning toward performance (default)
+    -p2 / balance-power       - Balanced, leaning toward power saving
+    -p3 / power               - Maximum power saving, may limit performance
 
 REQUIREMENTS:
     - AMD Ryzen CPU (Zen 2 or newer)
