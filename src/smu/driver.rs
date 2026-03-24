@@ -123,7 +123,7 @@ fn is_version_supported(version: u32) -> bool {
         // Zen 4 (Raphael)
         0x480804 | 0x480805 | 0x480904 |
         // Zen 5 (Granite Ridge)
-        0x620105 | 0x620205
+        0x620105 | 0x620205 | 0x621101 | 0x621102 | 0x621201 | 0x621202
     )
 }
 
@@ -392,6 +392,10 @@ mod tests {
     fn test_version_supported_zen5() {
         assert!(is_version_supported(0x620105));
         assert!(is_version_supported(0x620205));
+        assert!(is_version_supported(0x621101));
+        assert!(is_version_supported(0x621102));
+        assert!(is_version_supported(0x621201));
+        assert!(is_version_supported(0x621202));
     }
 
     #[test]
