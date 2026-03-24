@@ -655,83 +655,194 @@ fn handle_mem(raw: bool) -> Result<()> {
         anyhow::bail!("No memory channels detected");
     }
 
-    let w = 74;
-    let sep = "=".repeat(w);
-    let line = "-".repeat(w);
-
-    println!("{}", sep);
-    println!(" zen mem — Memory Timings ({}, {} channel(s))",
-        config.mem_type, config.channels.len());
-    println!("{}", sep);
-
-    // Use first channel as representative (they should be identical for matched DIMMs)
+    // Use first channel as representative
     let ch = &config.channels[0];
     let t = &ch.timings;
 
-    // Header
-    println!(" Frequency         {:.0} MT/s (ratio: {})", t.frequency_mhz, t.ratio);
-    println!(" GDM               {}", if t.gdm { "Enabled" } else { "Disabled" });
-    println!(" Cmd2T             {}", if t.cmd2t { "2T" } else { "1T" });
-    println!(" Power Down        {}", if t.power_down { "Enabled" } else { "Disabled" });
+    println!();
 
-    // Primary timings
-    println!("{}", line);
-    println!(" PRIMARY TIMINGS");
-    println!("{}", line);
-    println!("   tCL              {:>3}          tRCDRD          {:>3}", t.tcl, t.trcdrd);
-    println!("   tRCDWR           {:>3}          tRP             {:>3}", t.trcdwr, t.trp);
-    println!("   tRAS             {:>3}          tRC             {:>3}", t.tras, t.trc);
+    // ── Header table ─────────────────────────────────────────────────────
+    let mut header = Table::new();
+    header
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![Cell::new(format!(
+            "zen mem - {} Memory Timings ({} channel{})",
+            config.mem_type,
+            config.channels.len(),
+            if config.channels.len() > 1 { "s" } else { "" }
+        ))
+        .set_alignment(CellAlignment::Center)]);
 
-    // Secondary timings
-    println!("{}", line);
-    println!(" SECONDARY TIMINGS");
-    println!("{}", line);
-    println!("   tRRDS            {:>3}          tRRDL           {:>3}", t.trrds, t.trrdl);
-    println!("   tFAW             {:>3}          tWTRS           {:>3}", t.tfaw, t.twtrs);
-    println!("   tWTRL            {:>3}          tWR             {:>3}", t.twtrl, t.twr);
-    println!("   tCWL             {:>3}          tRTP            {:>3}", t.tcwl, t.trtp);
+    header.add_row(vec!["Frequency", &format!("{:.0} MT/s", t.frequency_mhz)]);
+    header.add_row(vec!["Ratio", &format!("{}", t.ratio)]);
+    header.add_row(vec!["GDM", if t.gdm { "Enabled" } else { "Disabled" }]);
+    header.add_row(vec!["Command Rate", if t.cmd2t { "2T" } else { "1T" }]);
+    header.add_row(vec!["Power Down", if t.power_down { "Enabled" } else { "Disabled" }]);
 
-    // Tertiary timings
-    println!("{}", line);
-    println!(" TERTIARY TIMINGS");
-    println!("{}", line);
-    println!("   tRDRDSCL         {:>3}          tWRWRSCL        {:>3}", t.trdrdscl, t.twrwrscl);
-    println!("   tRDRDSC          {:>3}          tWRWRSC         {:>3}", t.trdrdsc, t.twrwrsc);
-    println!("   tRDRDSD          {:>3}          tWRWRSD         {:>3}", t.trdrdsd, t.twrwrsd);
-    println!("   tRDRDDD          {:>3}          tWRWRDD         {:>3}", t.trdrddd, t.twrwrdd);
-    println!("   tRDWR            {:>3}          tWRRD           {:>3}", t.trdwr, t.twrrd);
+    println!("{}", header);
 
-    // Refresh
-    println!("{}", line);
-    println!(" REFRESH");
-    println!("{}", line);
-    println!("   tRFC             {:>4}          tRFC2           {:>4}", t.trfc, t.trfc2);
-    println!("   tRFC4            {:>4}          tREFI           {:>5}", t.trfc4, t.trefi);
+    // ── Primary timings ──────────────────────────────────────────────────
+    let mut primary = Table::new();
+    primary
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Primary").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+        ]);
 
-    // Channel details
+    primary.add_row(vec![
+        Cell::new("tCL"), Cell::new(t.tcl).set_alignment(CellAlignment::Right),
+        Cell::new("tRAS"), Cell::new(t.tras).set_alignment(CellAlignment::Right),
+    ]);
+    primary.add_row(vec![
+        Cell::new("tRCDRD"), Cell::new(t.trcdrd).set_alignment(CellAlignment::Right),
+        Cell::new("tRC"), Cell::new(t.trc).set_alignment(CellAlignment::Right),
+    ]);
+    primary.add_row(vec![
+        Cell::new("tRCDWR"), Cell::new(t.trcdwr).set_alignment(CellAlignment::Right),
+        Cell::new("tRP"), Cell::new(t.trp).set_alignment(CellAlignment::Right),
+    ]);
+
+    println!("{}", primary);
+
+    // ── Secondary timings ────────────────────────────────────────────────
+    let mut secondary = Table::new();
+    secondary
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Secondary").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+        ]);
+
+    secondary.add_row(vec![
+        Cell::new("tRRDS"), Cell::new(t.trrds).set_alignment(CellAlignment::Right),
+        Cell::new("tRRDL"), Cell::new(t.trrdl).set_alignment(CellAlignment::Right),
+    ]);
+    secondary.add_row(vec![
+        Cell::new("tFAW"), Cell::new(t.tfaw).set_alignment(CellAlignment::Right),
+        Cell::new("tWTRS"), Cell::new(t.twtrs).set_alignment(CellAlignment::Right),
+    ]);
+    secondary.add_row(vec![
+        Cell::new("tWTRL"), Cell::new(t.twtrl).set_alignment(CellAlignment::Right),
+        Cell::new("tWR"), Cell::new(t.twr).set_alignment(CellAlignment::Right),
+    ]);
+    secondary.add_row(vec![
+        Cell::new("tCWL"), Cell::new(t.tcwl).set_alignment(CellAlignment::Right),
+        Cell::new("tRTP"), Cell::new(t.trtp).set_alignment(CellAlignment::Right),
+    ]);
+
+    println!("{}", secondary);
+
+    // ── Tertiary timings ─────────────────────────────────────────────────
+    let mut tertiary = Table::new();
+    tertiary
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Tertiary").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+        ]);
+
+    tertiary.add_row(vec![
+        Cell::new("tRDRDSCL"), Cell::new(t.trdrdscl).set_alignment(CellAlignment::Right),
+        Cell::new("tWRWRSCL"), Cell::new(t.twrwrscl).set_alignment(CellAlignment::Right),
+    ]);
+    tertiary.add_row(vec![
+        Cell::new("tRDRDSC"), Cell::new(t.trdrdsc).set_alignment(CellAlignment::Right),
+        Cell::new("tWRWRSC"), Cell::new(t.twrwrsc).set_alignment(CellAlignment::Right),
+    ]);
+    tertiary.add_row(vec![
+        Cell::new("tRDRDSD"), Cell::new(t.trdrdsd).set_alignment(CellAlignment::Right),
+        Cell::new("tWRWRSD"), Cell::new(t.twrwrsd).set_alignment(CellAlignment::Right),
+    ]);
+    tertiary.add_row(vec![
+        Cell::new("tRDRDDD"), Cell::new(t.trdrddd).set_alignment(CellAlignment::Right),
+        Cell::new("tWRWRDD"), Cell::new(t.twrwrdd).set_alignment(CellAlignment::Right),
+    ]);
+    tertiary.add_row(vec![
+        Cell::new("tRDWR"), Cell::new(t.trdwr).set_alignment(CellAlignment::Right),
+        Cell::new("tWRRD"), Cell::new(t.twrrd).set_alignment(CellAlignment::Right),
+    ]);
+
+    println!("{}", tertiary);
+
+    // ── Refresh timings ──────────────────────────────────────────────────
+    let mut refresh = Table::new();
+    refresh
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![
+            Cell::new("Refresh").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+            Cell::new("").set_alignment(CellAlignment::Center),
+        ]);
+
+    refresh.add_row(vec![
+        Cell::new("tRFC"), Cell::new(t.trfc).set_alignment(CellAlignment::Right),
+        Cell::new("tRFC2"), Cell::new(t.trfc2).set_alignment(CellAlignment::Right),
+    ]);
+    refresh.add_row(vec![
+        Cell::new("tRFC4"), Cell::new(t.trfc4).set_alignment(CellAlignment::Right),
+        Cell::new("tREFI"), Cell::new(t.trefi).set_alignment(CellAlignment::Right),
+    ]);
+
+    println!("{}", refresh);
+
+    // ── Channel details ──────────────────────────────────────────────────
     if config.channels.len() > 1 {
-        println!("{}", line);
-        println!(" CHANNELS");
-        println!("{}", line);
+        let mut ch_table = Table::new();
+        ch_table
+            .load_preset(UTF8_FULL)
+            .set_content_arrangement(ContentArrangement::Dynamic)
+            .set_header(vec![
+                Cell::new("Channel").set_alignment(CellAlignment::Center),
+                Cell::new("DIMMs").set_alignment(CellAlignment::Center),
+                Cell::new("Speed").set_alignment(CellAlignment::Center),
+            ]);
+
         for ch in &config.channels {
             let dimms = match (ch.dimm0_present, ch.dimm1_present) {
-                (true, true) => "DIMM0 + DIMM1",
-                (true, false) => "DIMM0",
-                (false, true) => "DIMM1",
+                (true, true) => "Slot 0 + Slot 1",
+                (true, false) => "Slot 0",
+                (false, true) => "Slot 1",
                 _ => "empty",
             };
-            println!("   Channel {:>2}        {} ({:.0} MT/s)", ch.channel_id, dimms, ch.timings.frequency_mhz);
+            ch_table.add_row(vec![
+                Cell::new(format!("Ch {}", ch.channel_id)).set_alignment(CellAlignment::Center),
+                Cell::new(dimms),
+                Cell::new(format!("{:.0} MT/s", ch.timings.frequency_mhz))
+                    .set_alignment(CellAlignment::Right),
+            ]);
         }
+
+        println!("{}", ch_table);
     }
 
+    // ── Raw registers ────────────────────────────────────────────────────
     if raw {
-        println!("{}", line);
-        println!(" RAW REGISTERS (Channel 0, base 0x{:06X})", (ch.channel_id as u32) << 20);
-        println!("{}", line);
-        // Re-read and display raw values
         let base = (ch.channel_id as u32) << 20;
-        let regs = [
-            (UMC_CFG_LABEL, 0x50200u32),
+        let mut raw_table = Table::new();
+        raw_table
+            .load_preset(UTF8_FULL)
+            .set_content_arrangement(ContentArrangement::Dynamic)
+            .set_header(vec![
+                Cell::new("Address").set_alignment(CellAlignment::Center),
+                Cell::new("Value").set_alignment(CellAlignment::Center),
+                Cell::new("Register").set_alignment(CellAlignment::Left),
+            ]);
+
+        let regs: &[(&str, u32)] = &[
+            ("CFG (ratio/GDM/2T)", 0x50200),
             ("TIM0 (CL/RAS/RCD)", 0x50204),
             ("TIM1 (RC/RP)", 0x50208),
             ("TIM2 (RRDS/RRDL/RTP)", 0x5020C),
@@ -746,16 +857,20 @@ fn handle_mem(raw: bool) -> Result<()> {
         ];
         for (label, addr) in regs {
             if let Ok(val) = smn_reader.read_register(base | addr) {
-                println!("   0x{:05X}  0x{:08X}  {}", addr, val, label);
+                raw_table.add_row(vec![
+                    Cell::new(format!("0x{:05X}", addr)).set_alignment(CellAlignment::Right),
+                    Cell::new(format!("0x{:08X}", val)).set_alignment(CellAlignment::Right),
+                    Cell::new(label),
+                ]);
             }
         }
+
+        println!("{}", raw_table);
     }
 
-    println!("{}", sep);
+    println!();
     Ok(())
 }
-
-const UMC_CFG_LABEL: &str = "CFG (ratio/GDM/2T)";
 
 // =============================================================================
 // Display Functions
