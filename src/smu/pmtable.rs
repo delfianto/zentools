@@ -116,19 +116,27 @@ const ZEN4_CORE: Zen4CoreOffsets = Zen4CoreOffsets {
 };
 
 // =============================================================================
-// Zen 5 PM table field map (versions 0x620xxx)
-// WARNING: UNVERIFIED. Zen 4 showed that offsets shift drastically between
-// generations — these are best-effort guesses and WILL produce garbage if wrong.
-// Use `zen smu pm-table -f --raw` to reverse-engineer actual offsets.
+// Zen 5 PM table field map (versions 0x620xxx / 0x621xxx)
+// Source: irusanov/ZenStates-Core PowerTable.cs (confirmed on Granite Ridge)
+// https://github.com/irusanov/ZenStates-Core/blob/master/PowerTable.cs
+//
+// Only 8 fields have been reverse-engineered by the community.
+// PPT/TDC/EDC, temperature, and per-core offsets remain UNKNOWN.
 // =============================================================================
 
 const ZEN5_FIELDS: &[PmTableField] = &[
-    // These offsets are speculative — Zen 4 moved Tctl from 0x014 to 0x454,
-    // so Zen 5 offsets are likely different again. Only use as starting point.
-    PmTableField { name: "PPT Limit (?)", offset: 0x000, data_type: FieldType::F32, unit: "W" },
-    PmTableField { name: "PPT Current (?)", offset: 0x004, data_type: FieldType::F32, unit: "W" },
-    PmTableField { name: "TDC Limit (?)", offset: 0x008, data_type: FieldType::F32, unit: "A" },
-    PmTableField { name: "TDC Current (?)", offset: 0x00C, data_type: FieldType::F32, unit: "A" },
+    // Voltage
+    PmTableField { name: "VDD_MISC", offset: 0x0E8, data_type: FieldType::F32, unit: "V" },
+    // Clocks
+    PmTableField { name: "FCLK", offset: 0x11C, data_type: FieldType::F32, unit: "MHz" },
+    PmTableField { name: "UCLK", offset: 0x12C, data_type: FieldType::F32, unit: "MHz" },
+    PmTableField { name: "MCLK", offset: 0x13C, data_type: FieldType::F32, unit: "MHz" },
+    // SoC Voltage
+    PmTableField { name: "VDDCR_SOC", offset: 0x14C, data_type: FieldType::F32, unit: "V" },
+    // Memory Voltages
+    PmTableField { name: "CLDO_VDDG_IOD", offset: 0x40C, data_type: FieldType::F32, unit: "V" },
+    PmTableField { name: "CLDO_VDDG_CCD", offset: 0x414, data_type: FieldType::F32, unit: "V" },
+    PmTableField { name: "CLDO_VDDP", offset: 0x434, data_type: FieldType::F32, unit: "V" },
 ];
 
 /// Get the field map for a given PM table version
@@ -138,8 +146,8 @@ pub fn get_field_map(version: u32) -> Option<&'static [PmTableField]> {
         0x240903 | 0x240802 | 0x240803 => Some(ZEN2_FIELDS),
         // Zen 4 (Raphael) — from ryzen_smu_hwmon
         0x480804 | 0x480805 | 0x480904 => Some(ZEN4_FIELDS),
-        // Zen 5 (Granite Ridge) — unverified guesses
-        0x620105 | 0x620205 => Some(ZEN5_FIELDS),
+        // Zen 5 (Granite Ridge) — from ZenStates-Core
+        0x620105 | 0x620205 | 0x621101 | 0x621102 | 0x621201 | 0x621202 => Some(ZEN5_FIELDS),
         _ => None,
     }
 }
@@ -152,9 +160,12 @@ pub fn has_per_core_fields(version: u32) -> bool {
     )
 }
 
-/// Check if the PM table version mapping is experimental (incomplete)
+/// Check if the PM table version mapping is partial (community reverse-engineered, not complete)
 pub fn is_experimental(version: u32) -> bool {
-    matches!(version, 0x620105 | 0x620205)
+    matches!(
+        version,
+        0x620105 | 0x620205 | 0x621101 | 0x621102 | 0x621201 | 0x621202
+    )
 }
 
 /// Get the generation label for a PM table version
@@ -162,7 +173,7 @@ pub fn version_generation(version: u32) -> &'static str {
     match version {
         0x240903 | 0x240802 | 0x240803 => "Zen 2/3",
         0x480804 | 0x480805 | 0x480904 => "Zen 4",
-        0x620105 | 0x620205 => "Zen 5",
+        0x620105 | 0x620205 | 0x621101 | 0x621102 | 0x621201 | 0x621202 => "Zen 5",
         _ => "Unknown",
     }
 }
@@ -192,27 +203,27 @@ pub fn parse_pm_table(pm_table: &PmTableData) -> CpuMetrics {
         };
 
         match field.name {
-            "PPT Limit" | "PPT Limit (?)" => metrics.ppt_limit_w = Some(value),
-            "PPT Current" | "PPT Current (?)" => metrics.ppt_current_w = Some(value),
-            "TDC Limit" | "TDC Limit (?)" => metrics.tdc_limit_a = Some(value),
-            "TDC Current" | "TDC Current (?)" => metrics.tdc_current_a = Some(value),
+            "PPT Limit" => metrics.ppt_limit_w = Some(value),
+            "PPT Current" => metrics.ppt_current_w = Some(value),
+            "TDC Limit" => metrics.tdc_limit_a = Some(value),
+            "TDC Current" => metrics.tdc_current_a = Some(value),
             "TjMax" => metrics.tjmax_c = Some(value),
             "Tctl" => metrics.tctl_temp_c = Some(value),
             "EDC Limit" => metrics.edc_limit_a = Some(value),
             "EDC Current" => metrics.edc_current_a = Some(value),
-            "SVI2 Voltage" | "Vcore" => metrics.core_voltage_v = Some(value),
+            "SVI2 Voltage" | "Vcore" | "VDD_MISC" => metrics.core_voltage_v = Some(value),
             "Core Power" => metrics.core_power_w = Some(value),
             "Package Power" => metrics.package_power_w = Some(value),
             "SoC Power" => metrics.soc_power_w = Some(value),
             "Peak Voltage" => metrics.peak_voltage_v = Some(value),
-            "SoC Voltage" | "VSOC" => metrics.soc_voltage_v = Some(value),
+            "SoC Voltage" | "VSOC" | "VDDCR_SOC" => metrics.soc_voltage_v = Some(value),
             "SoC Current" => {}
             "FCLK" => metrics.fclk_mhz = Some(value),
             "FCLK Avg" => metrics.fclk_avg_mhz = Some(value),
             "UCLK" => metrics.uclk_mhz = Some(value),
             "MCLK" => metrics.mclk_mhz = Some(value),
-            "cLDO_VDDP" => metrics.vddp_v = Some(value),
-            "cLDO_VDDG" => metrics.vddg_v = Some(value),
+            "cLDO_VDDP" | "CLDO_VDDP" => metrics.vddp_v = Some(value),
+            "cLDO_VDDG" | "CLDO_VDDG_IOD" | "CLDO_VDDG_CCD" => metrics.vddg_v = Some(value),
             _ => {}
         }
     }
@@ -393,6 +404,10 @@ mod tests {
     fn test_get_field_map_zen5_versions() {
         assert!(get_field_map(0x620105).is_some());
         assert!(get_field_map(0x620205).is_some());
+        assert!(get_field_map(0x621101).is_some());
+        assert!(get_field_map(0x621102).is_some());
+        assert!(get_field_map(0x621201).is_some());
+        assert!(get_field_map(0x621202).is_some());
     }
 
     #[test]
@@ -418,6 +433,8 @@ mod tests {
     fn test_is_experimental_zen5() {
         assert!(is_experimental(0x620105));
         assert!(is_experimental(0x620205));
+        assert!(is_experimental(0x621101));
+        assert!(is_experimental(0x621202));
     }
 
     #[test]
@@ -443,6 +460,7 @@ mod tests {
         assert_eq!(version_generation(0x240903), "Zen 2/3");
         assert_eq!(version_generation(0x480804), "Zen 4");
         assert_eq!(version_generation(0x620205), "Zen 5");
+        assert_eq!(version_generation(0x621202), "Zen 5");
         assert_eq!(version_generation(0x999999), "Unknown");
     }
 
@@ -527,7 +545,7 @@ mod tests {
 
     #[test]
     fn test_field_names_non_empty() {
-        for version in [0x240903u32, 0x240802, 0x480804, 0x480805, 0x620105, 0x620205] {
+        for version in [0x240903u32, 0x240802, 0x480804, 0x480805, 0x620105, 0x620205, 0x621202] {
             if let Some(fields) = get_field_map(version) {
                 for field in fields {
                     assert!(!field.name.is_empty());
@@ -602,21 +620,36 @@ mod tests {
     // =========================================================================
 
     #[test]
-    fn test_parse_pm_table_zen5_pbo_limits() {
+    fn test_parse_pm_table_zen5_confirmed_fields() {
         let pt = make_pm_table(0x620205, 0x994, &[
-            (0x000, 200.0),  // PPT Limit (?)
-            (0x004, 150.0),  // PPT Current (?)
-            (0x008, 160.0),  // TDC Limit (?)
-            (0x00C, 45.0),   // TDC Current (?)
+            (0x0E8, 1.1),     // VDD_MISC -> core_voltage_v
+            (0x11C, 2000.0),  // FCLK
+            (0x12C, 3200.0),  // UCLK
+            (0x13C, 3200.0),  // MCLK
+            (0x14C, 1.05),    // VDDCR_SOC -> soc_voltage_v
+            (0x40C, 0.95),    // CLDO_VDDG_IOD -> vddg_v
+            (0x434, 0.88),    // CLDO_VDDP -> vddp_v
         ]);
 
         let metrics = parse_pm_table(&pt);
         assert_eq!(metrics.source, MetricsSource::PmTable);
-        // These are speculative offsets — the (?) suffix still maps to the same metrics
-        assert!((metrics.ppt_limit_w.unwrap() - 200.0).abs() < 0.1);
-        assert!((metrics.ppt_current_w.unwrap() - 150.0).abs() < 0.1);
-        assert!((metrics.tdc_limit_a.unwrap() - 160.0).abs() < 0.1);
-        assert!((metrics.tdc_current_a.unwrap() - 45.0).abs() < 0.1);
+        assert!((metrics.core_voltage_v.unwrap() - 1.1).abs() < 0.01);
+        assert!((metrics.fclk_mhz.unwrap() - 2000.0).abs() < 0.1);
+        assert!((metrics.uclk_mhz.unwrap() - 3200.0).abs() < 0.1);
+        assert!((metrics.mclk_mhz.unwrap() - 3200.0).abs() < 0.1);
+        assert!((metrics.soc_voltage_v.unwrap() - 1.05).abs() < 0.01);
+        assert!((metrics.vddg_v.unwrap() - 0.95).abs() < 0.01);
+        assert!((metrics.vddp_v.unwrap() - 0.88).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_parse_pm_table_zen5_newer_version() {
+        // Verify newer Zen 5 versions use the same field map
+        let pt = make_pm_table(0x621202, 0x994, &[
+            (0x11C, 1800.0), // FCLK
+        ]);
+        let metrics = parse_pm_table(&pt);
+        assert!((metrics.fclk_mhz.unwrap() - 1800.0).abs() < 0.1);
     }
 
     #[test]
