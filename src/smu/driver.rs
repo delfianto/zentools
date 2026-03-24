@@ -118,7 +118,12 @@ pub fn read_pm_table(force: bool) -> Result<PmTableData, SmuError> {
 fn is_version_supported(version: u32) -> bool {
     matches!(
         version,
-        0x240903 | 0x240802 | 0x240803 | 0x620105 | 0x620205
+        // Zen 2/3
+        0x240903 | 0x240802 | 0x240803 |
+        // Zen 4 (Raphael)
+        0x480804 | 0x480805 | 0x480904 |
+        // Zen 5 (Granite Ridge)
+        0x620105 | 0x620205
     )
 }
 
@@ -377,6 +382,13 @@ mod tests {
     }
 
     #[test]
+    fn test_version_supported_zen4() {
+        assert!(is_version_supported(0x480804));
+        assert!(is_version_supported(0x480805));
+        assert!(is_version_supported(0x480904));
+    }
+
+    #[test]
     fn test_version_supported_zen5() {
         assert!(is_version_supported(0x620105));
         assert!(is_version_supported(0x620205));
@@ -386,8 +398,9 @@ mod tests {
     fn test_version_not_supported() {
         assert!(!is_version_supported(0x000000));
         assert!(!is_version_supported(0x999999));
-        assert!(!is_version_supported(0x240901)); // close but not valid
-        assert!(!is_version_supported(0x620100)); // close but not valid
+        assert!(!is_version_supported(0x240901));
+        assert!(!is_version_supported(0x480800)); // close but not valid
+        assert!(!is_version_supported(0x620100));
         assert!(!is_version_supported(u32::MAX));
     }
 
