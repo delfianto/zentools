@@ -163,17 +163,23 @@ pub fn read_mem_config(smn: &SmnReader, mem_type: MemType) -> Result<MemConfig, 
     })
 }
 
-/// Detect DIMM presence for a channel using the correct registers for the memory type
-fn detect_dimms(smn: &SmnReader, base: u32, mem_type: MemType) -> (bool, bool) {
-    let (addr0, addr1) = match mem_type {
-        MemType::DDR5 => (DDR5_DIMM0_ADDR, DDR5_DIMM1_ADDR),
-        _ => (DDR4_DIMM0_ADDR, DDR4_DIMM1_ADDR),
-    };
+/// Detect DIMM presence for a channel.
+/// Tries both DDR4 and DDR5 register addresses — on some Zen 5 platforms,
+/// the DDR4 addresses (0x50000/0x50008) report presence even for DDR5 DIMMs.
+fn detect_dimms(smn: &SmnReader, base: u32, _mem_type: MemType) -> (bool, bool) {
+    // Try DDR4 addresses first (work on all platforms including Zen 5 DDR5)
+    let d4_0 = smn.read_register(base | DDR4_DIMM0_ADDR).unwrap_or(0);
+    let d4_1 = smn.read_register(base | DDR4_DIMM1_ADDR).unwrap_or(0);
 
-    let d0 = smn.read_register(base | addr0).unwrap_or(0);
-    let d1 = smn.read_register(base | addr1).unwrap_or(0);
+    if (d4_0 & 1) != 0 || (d4_1 & 1) != 0 {
+        return ((d4_0 & 1) != 0, (d4_1 & 1) != 0);
+    }
 
-    ((d0 & 1) != 0, (d1 & 1) != 0)
+    // Fallback: try DDR5 addresses
+    let d5_0 = smn.read_register(base | DDR5_DIMM0_ADDR).unwrap_or(0);
+    let d5_1 = smn.read_register(base | DDR5_DIMM1_ADDR).unwrap_or(0);
+
+    ((d5_0 & 1) != 0, (d5_1 & 1) != 0)
 }
 
 /// Read all timing registers for a single channel
