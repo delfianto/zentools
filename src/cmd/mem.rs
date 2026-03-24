@@ -1,6 +1,7 @@
 //! Memory timing command handler and display
 
 use anyhow::Result;
+use comfy_table::{presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table};
 use zentools::smu::{driver, mem, smn};
 
 pub fn handle(raw: bool) -> Result<()> {
@@ -22,90 +23,96 @@ pub fn handle(raw: bool) -> Result<()> {
     let ch = &config.channels[0];
     let t = &ch.timings;
 
-    let title = format!(
-        "zen mem - {} Memory Timings ({} channel{})",
-        config.mem_type,
-        config.channels.len(),
-        if config.channels.len() > 1 { "s" } else { "" }
-    );
-
-    let w = 58;
-    let sep = format!("+{}+", "=".repeat(w));
-    let div = format!("+{}+", "-".repeat(w));
-
-    // Title
     println!();
-    println!("{}", sep);
-    println!("| {:^w$} |", title, w = w);
-    println!("{}", sep);
-    println!("| {:>15}: {:<width$} |", "Frequency", format!("{:.0} MT/s", t.frequency_mhz), width = w - 18);
-    println!("| {:>15}: {:<width$} |", "Ratio", t.ratio, width = w - 18);
-    println!("| {:>15}: {:<width$} |", "GDM", if t.gdm { "Enabled" } else { "Disabled" }, width = w - 18);
-    println!("| {:>15}: {:<width$} |", "Command Rate", if t.cmd2t { "2T" } else { "1T" }, width = w - 18);
-    println!("| {:>15}: {:<width$} |", "Power Down", if t.power_down { "Enabled" } else { "Disabled" }, width = w - 18);
-    println!("{}", div);
 
-    // Timing sections as a unified table
-    print_section(&div, w, "Primary", &[
+    // ── Main table: header + all timing sections in one ──────────────────
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_header(vec![Cell::new(format!(
+            "zen mem - {} Memory Timings ({} ch)",
+            config.mem_type, config.channels.len()
+        ))
+        .set_alignment(CellAlignment::Center)]);
+
+    table.add_row(vec![format!(
+        " Frequency: {:.0} MT/s   Ratio: {}   GDM: {}   Cmd: {}   PwrDn: {}",
+        t.frequency_mhz,
+        t.ratio,
+        if t.gdm { "On" } else { "Off" },
+        if t.cmd2t { "2T" } else { "1T" },
+        if t.power_down { "On" } else { "Off" },
+    )]);
+
+    // Section helper: adds a section header + timing rows to the table
+    fn add_section(table: &mut Table, title: &str, rows: &[(&str, u32, &str, u32)]) {
+        table.add_row(vec![Cell::new(format!("  --- {} ---", title))
+            .set_alignment(CellAlignment::Center)]);
+        for (l1, v1, l2, v2) in rows {
+            table.add_row(vec![format!(
+                "    {:<12} {:>5}       {:<12} {:>5}",
+                l1, v1, l2, v2
+            )]);
+        }
+    }
+
+    add_section(&mut table, "Primary", &[
         ("tCL", t.tcl, "tRAS", t.tras),
         ("tRCDRD", t.trcdrd, "tRC", t.trc),
         ("tRCDWR", t.trcdwr, "tRP", t.trp),
     ]);
-    print_section(&div, w, "Secondary", &[
+    add_section(&mut table, "Secondary", &[
         ("tRRDS", t.trrds, "tRRDL", t.trrdl),
         ("tFAW", t.tfaw, "tWTRS", t.twtrs),
         ("tWTRL", t.twtrl, "tWR", t.twr),
         ("tCWL", t.tcwl, "tRTP", t.trtp),
     ]);
-    print_section(&div, w, "Tertiary", &[
+    add_section(&mut table, "Tertiary", &[
         ("tRDRDSCL", t.trdrdscl, "tWRWRSCL", t.twrwrscl),
         ("tRDRDSC", t.trdrdsc, "tWRWRSC", t.twrwrsc),
         ("tRDRDSD", t.trdrdsd, "tWRWRSD", t.twrwrsd),
         ("tRDRDDD", t.trdrddd, "tWRWRDD", t.twrwrdd),
         ("tRDWR", t.trdwr, "tWRRD", t.twrrd),
     ]);
-    print_section(&div, w, "Refresh", &[
+    add_section(&mut table, "Refresh", &[
         ("tRFC", t.trfc, "tRFC2", t.trfc2),
         ("tRFC4", t.trfc4, "tREFI", t.trefi),
     ]);
 
     // Channels
     if config.channels.len() > 1 {
-        println!("| {:^w$} |", "Channels", w = w);
-        println!("| {:-<w$} |", "", w = w);
+        table.add_row(vec![Cell::new("  --- Channels ---")
+            .set_alignment(CellAlignment::Center)]);
         for ch in &config.channels {
             let dimms = match (ch.dimm0_present, ch.dimm1_present) {
-                (true, true) => "Slot 0 + Slot 1",
+                (true, true) => "Slot 0 + 1",
                 (true, false) => "Slot 0",
                 (false, true) => "Slot 1",
                 _ => "empty",
             };
-            println!(
-                "|   Ch {:>2}  {:<16} {:>10} MT/s       |",
-                ch.channel_id, dimms, format!("{:.0}", ch.timings.frequency_mhz)
-            );
+            table.add_row(vec![format!(
+                "    Ch {}   {:<14}  {:.0} MT/s",
+                ch.channel_id, dimms, ch.timings.frequency_mhz
+            )]);
         }
-        println!("{}", sep);
     }
 
-    // Raw registers
+    println!("{}", table);
+
+    // ── Raw registers (separate table) ───────────────────────────────────
     if raw {
-        println!();
         let base = ch.channel_id << 20;
-        println!(
-            "+{}+",
-            "=".repeat(52)
-        );
-        println!(
-            "| {:^50} |",
-            format!("Raw Registers (Ch {}, base 0x{:06X})", ch.channel_id, base)
-        );
-        println!(
-            "+{}+{}+{}+",
-            "-".repeat(9),
-            "-".repeat(14),
-            "-".repeat(27)
-        );
+        let mut raw_table = Table::new();
+        raw_table
+            .load_preset(UTF8_FULL)
+            .set_content_arrangement(ContentArrangement::Dynamic)
+            .set_header(vec![
+                Cell::new("Address").set_alignment(CellAlignment::Center),
+                Cell::new("Value").set_alignment(CellAlignment::Center),
+                Cell::new("Register").set_alignment(CellAlignment::Left),
+            ]);
+
         let regs: &[(&str, u32)] = &[
             ("CFG (ratio/GDM/2T)", 0x50200),
             ("TIM0 (CL/RAS/RCD)", 0x50204),
@@ -122,32 +129,17 @@ pub fn handle(raw: bool) -> Result<()> {
         ];
         for (label, addr) in regs {
             if let Ok(val) = smn_reader.read_register(base | addr) {
-                println!(
-                    "| 0x{:05X} | 0x{:08X}   | {:<25} |",
-                    addr, val, label
-                );
+                raw_table.add_row(vec![
+                    Cell::new(format!("0x{:05X}", addr)).set_alignment(CellAlignment::Right),
+                    Cell::new(format!("0x{:08X}", val)).set_alignment(CellAlignment::Right),
+                    Cell::new(label),
+                ]);
             }
         }
-        println!(
-            "+{}+{}+{}+",
-            "-".repeat(9),
-            "-".repeat(14),
-            "-".repeat(27)
-        );
+
+        println!("{}", raw_table);
     }
 
     println!();
     Ok(())
-}
-
-fn print_section(div: &str, w: usize, title: &str, rows: &[(&str, u32, &str, u32)]) {
-    println!("| {:^w$} |", title, w = w);
-    println!("| {:-<w$} |", "", w = w);
-    for (l1, v1, l2, v2) in rows {
-        println!(
-            "|   {:<12} {:>5}     {:<12} {:>5}       |",
-            l1, v1, l2, v2
-        );
-    }
-    println!("{}", div);
 }
