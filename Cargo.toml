@@ -1,21 +1,25 @@
-[workspace]
-members = ["zen_epp", "zen_smu", "zentools"]
-resolver = "2"
-
-[workspace.package]
-version = "0.2.0"
-edition = "2021"
+[package]
+name = "zentools"
+version = "0.3.0"
+edition = "2024"
 authors = ["Delf <delf@example.com>"]
-license = "GPL-3.0-or-later"
+license = "MIT"
 repository = "https://github.com/yourusername/zentools"
 keywords = ["amd", "ryzen", "zen", "epp", "smu"]
 categories = ["command-line-utilities", "hardware-support"]
+description = "AMD Ryzen CPU management utility - EPP and SMU monitoring"
 
-[workspace.dependencies]
-anyhow = "1.0"
-byteorder = "1.5"
-clap = { version = "4.5", features = ["derive"] }
-thiserror = "1.0"
+[[bin]]
+name = "zen"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+byteorder = "1"
+clap = { version = "4", features = ["derive"] }
+comfy-table = "7"
+ctrlc = "3"
+thiserror = "2"
 
 [profile.release]
 strip = true
