@@ -93,13 +93,17 @@ pub fn handle(raw: bool) -> Result<()> {
         ]);
     }
 
-    println!("{}", info);
+    let info_rendered = info.to_string();
+    // Measure actual rendered width from the first line
+    let table_width = info_rendered.lines().next().map(|l| l.chars().count()).unwrap_or(48);
+    println!("{}", info_rendered);
 
-    // ── Timing table ─────────────────────────────────────────────────────
+    // ── Timing table (matched to info table width) ───────────────────────
     let mut tim = Table::new();
     tim.load_preset(UTF8_FULL)
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_width(table_width as u16)
         .set_header(vec![
             Cell::new("Timing").set_alignment(CellAlignment::Left),
             Cell::new("Val").set_alignment(CellAlignment::Right),
