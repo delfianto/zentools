@@ -215,8 +215,14 @@ mod tests {
         assert!(m.edc_current_a.is_none());
         assert!(m.tjmax_c.is_none());
         assert!(m.fclk_mhz.is_none());
+        assert!(m.fclk_avg_mhz.is_none());
         assert!(m.uclk_mhz.is_none());
         assert!(m.mclk_mhz.is_none());
+        assert!(m.vddp_v.is_none());
+        assert!(m.vddg_v.is_none());
+        assert!(m.peak_core_freq_mhz.is_none());
+        assert!(m.avg_core_voltage_v.is_none());
+        assert!(m.soc_temp_c.is_none());
         assert!(m.per_core.is_empty());
     }
 
