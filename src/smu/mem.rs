@@ -202,8 +202,19 @@ fn read_channel_timings(
     let rfc = smn.read_register(base | UMC_RFC)?;
     let pwr = smn.read_register(base | UMC_PWR_CFG).unwrap_or(0);
 
-    let ratio = cfg & 0x7F;
-    let frequency_mhz = (ratio as f64 / 3.0) * 200.0; // ratio/3 * bclk(100) * 2
+    // Frequency extraction differs between DDR4 and DDR5:
+    // DDR4: bits [6:0] = ratio, freq = ratio / 3 * bclk * 2
+    // DDR5 (Zen 4/5): bits [15:0] = MCLK in MHz directly, MT/s = MCLK * 2
+    let (ratio, frequency_mhz) = match mem_type {
+        MemType::DDR5 => {
+            let mclk = cfg & 0xFFFF;
+            (mclk, (mclk as f64) * 2.0)
+        }
+        _ => {
+            let r = cfg & 0x7F;
+            (r, (r as f64 / 3.0) * 200.0)
+        }
+    };
 
     // Cmd2T and GDM bit positions differ between DDR4 and DDR5
     let (cmd2t, gdm) = match mem_type {
@@ -457,18 +468,28 @@ mod tests {
 
     #[test]
     fn test_frequency_ddr5_6000() {
-        // DDR5-6000: ratio=90, freq = 90/3 * 200 = 6000
-        let ratio = 90u32;
-        let freq = (ratio as f64 / 3.0) * 200.0;
+        // DDR5-6000: MCLK=3000 in register bits [15:0], MT/s = 3000 * 2
+        let mclk = 3000u32;
+        let freq = (mclk as f64) * 2.0;
         assert!((freq - 6000.0).abs() < 1.0);
     }
 
     #[test]
     fn test_frequency_ddr5_6400() {
-        // DDR5-6400: ratio=96, freq = 96/3 * 200 = 6400
-        let ratio = 96u32;
-        let freq = (ratio as f64 / 3.0) * 200.0;
+        // DDR5-6400: MCLK=3200 in register bits [15:0], MT/s = 3200 * 2
+        let mclk = 3200u32;
+        let freq = (mclk as f64) * 2.0;
         assert!((freq - 6400.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_frequency_ddr5_from_real_register() {
+        // Real Zen 5 register: 0x80050BB8, bits [15:0] = 0x0BB8 = 3000
+        let cfg: u32 = 0x80050BB8;
+        let mclk = cfg & 0xFFFF;
+        assert_eq!(mclk, 3000);
+        let freq = (mclk as f64) * 2.0;
+        assert!((freq - 6000.0).abs() < 1.0);
     }
 
     // =========================================================================
@@ -528,7 +549,7 @@ mod tests {
     fn test_mem_timings_realistic_ddr5() {
         let t = MemTimings {
             mem_type: Some(MemType::DDR5),
-            ratio: 90,
+            ratio: 3000, // MCLK in MHz for DDR5
             frequency_mhz: 6000.0,
             cmd2t: true,
             gdm: false,
@@ -614,12 +635,25 @@ mod tests {
 
     #[test]
     fn test_roundtrip_cfg_ddr5() {
-        let ratio = 96u32; let cmd2t = true; let gdm = false;
-        let encoded = ratio | ((cmd2t as u32) << 17) | ((gdm as u32) << 18);
+        // DDR5: bits [15:0] = MCLK, bit 17 = Cmd2T, bit 18 = GDM
+        let mclk = 3000u32; let cmd2t = true; let gdm = false;
+        let encoded = mclk | ((cmd2t as u32) << 17) | ((gdm as u32) << 18);
 
-        assert_eq!(encoded & 0x7F, 96);
+        assert_eq!(encoded & 0xFFFF, 3000);
         assert_eq!((encoded >> 17) & 1, 1);
         assert_eq!((encoded >> 18) & 1, 0);
+    }
+
+    #[test]
+    fn test_cfg_ddr5_real_register() {
+        // Real Zen 5 9950X register value
+        let cfg: u32 = 0x80050BB8;
+        // MCLK
+        assert_eq!(cfg & 0xFFFF, 3000);
+        // Cmd2T (bit 17) = 0 → 1T
+        assert_eq!((cfg >> 17) & 1, 0);
+        // GDM (bit 18) = 1 → Enabled
+        assert_eq!((cfg >> 18) & 1, 1);
     }
 
     // =========================================================================
