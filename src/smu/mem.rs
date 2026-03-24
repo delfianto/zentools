@@ -123,10 +123,10 @@ pub struct MemConfig {
     pub channels: Vec<MemChannel>,
 }
 
-/// Read memory configuration from UMC registers via SMN
-pub fn read_mem_config(smn: &SmnReader) -> Result<MemConfig, SmuError> {
+/// Read memory configuration from UMC registers via SMN.
+/// `mem_type` should be determined from the CPU generation (Zen 4/5 = DDR5, older = DDR4).
+pub fn read_mem_config(smn: &SmnReader, mem_type: MemType) -> Result<MemConfig, SmuError> {
     let mut channels = Vec::new();
-    let mut detected_type = MemType::Unknown;
 
     for ch in 0..MAX_CHANNELS {
         let base = ch << 20;
@@ -140,15 +140,11 @@ pub fn read_mem_config(smn: &SmnReader) -> Result<MemConfig, SmuError> {
             continue;
         }
 
-        // Detect DDR type and DIMM presence
-        let (dimm0, dimm1, mem_type) = detect_dimms(smn, base)?;
+        // Detect DIMM presence using the correct registers for the memory type
+        let (dimm0, dimm1) = detect_dimms(smn, base, mem_type);
 
         if !dimm0 && !dimm1 {
             continue;
-        }
-
-        if detected_type == MemType::Unknown {
-            detected_type = mem_type;
         }
 
         let timings = read_channel_timings(smn, base, mem_type)?;
@@ -162,30 +158,22 @@ pub fn read_mem_config(smn: &SmnReader) -> Result<MemConfig, SmuError> {
     }
 
     Ok(MemConfig {
-        mem_type: detected_type,
+        mem_type,
         channels,
     })
 }
 
-/// Detect DIMM presence and memory type for a channel
-fn detect_dimms(smn: &SmnReader, base: u32) -> Result<(bool, bool, MemType), SmuError> {
-    // Try DDR5 detection first
-    let d5_0 = smn.read_register(base | DDR5_DIMM0_ADDR).unwrap_or(0);
-    let d5_1 = smn.read_register(base | DDR5_DIMM1_ADDR).unwrap_or(0);
+/// Detect DIMM presence for a channel using the correct registers for the memory type
+fn detect_dimms(smn: &SmnReader, base: u32, mem_type: MemType) -> (bool, bool) {
+    let (addr0, addr1) = match mem_type {
+        MemType::DDR5 => (DDR5_DIMM0_ADDR, DDR5_DIMM1_ADDR),
+        _ => (DDR4_DIMM0_ADDR, DDR4_DIMM1_ADDR),
+    };
 
-    if (d5_0 & 1) != 0 || (d5_1 & 1) != 0 {
-        return Ok(((d5_0 & 1) != 0, (d5_1 & 1) != 0, MemType::DDR5));
-    }
+    let d0 = smn.read_register(base | addr0).unwrap_or(0);
+    let d1 = smn.read_register(base | addr1).unwrap_or(0);
 
-    // Try DDR4 detection
-    let d4_0 = smn.read_register(base | DDR4_DIMM0_ADDR).unwrap_or(0);
-    let d4_1 = smn.read_register(base | DDR4_DIMM1_ADDR).unwrap_or(0);
-
-    if (d4_0 & 1) != 0 || (d4_1 & 1) != 0 {
-        return Ok(((d4_0 & 1) != 0, (d4_1 & 1) != 0, MemType::DDR4));
-    }
-
-    Ok((false, false, MemType::Unknown))
+    ((d0 & 1) != 0, (d1 & 1) != 0)
 }
 
 /// Read all timing registers for a single channel
