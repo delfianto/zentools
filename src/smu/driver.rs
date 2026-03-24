@@ -236,6 +236,131 @@ pub enum SysfsFileInfo {
     Error(String),
 }
 
+/// Decode a known binary sysfs value into a human-readable string
+pub fn decode_binary_value(name: &str, data: &[u8]) -> Option<String> {
+    match name {
+        "pm_table_version" if data.len() >= 4 => {
+            let mut c = Cursor::new(&data[..4]);
+            let v = c.read_u32::<LittleEndian>().ok()?;
+            Some(format!("0x{:06X}", v))
+        }
+        "pm_table_size" => {
+            if data.len() >= 8 {
+                let mut c = Cursor::new(&data[..8]);
+                let v = c.read_u64::<LittleEndian>().ok()?;
+                Some(format!("{} bytes", v))
+            } else if data.len() >= 4 {
+                let mut c = Cursor::new(&data[..4]);
+                let v = c.read_u32::<LittleEndian>().ok()?;
+                Some(format!("{} bytes", v))
+            } else {
+                None
+            }
+        }
+        "mp1_if_version" if data.len() >= 4 => {
+            let mut c = Cursor::new(&data[..4]);
+            let v = c.read_u32::<LittleEndian>().ok()?;
+            Some(format!("{}", v))
+        }
+        // SMU command response codes
+        "rsmu_cmd" | "mp1_smu_cmd" | "hsmp_smu_cmd" if data.len() >= 4 => {
+            let mut c = Cursor::new(&data[..4]);
+            let v = c.read_u32::<LittleEndian>().ok()?;
+            let status = match v {
+                0x00 => "Failed",
+                0x01 => "OK",
+                0x02 => "UnknownCmd",
+                0x03 => "CmdRejectedPrereq",
+                0x04 => "CmdRejectedBusy",
+                0xFE => "CommandTimeout",
+                0xFF => "CmdCompletedPartially",
+                _ => return Some(format!("0x{:02X} (unknown)", v)),
+            };
+            Some(format!("0x{:02X} ({})", v, status))
+        }
+        "smn" if data.len() >= 4 => {
+            let mut c = Cursor::new(&data[..4]);
+            let v = c.read_u32::<LittleEndian>().ok()?;
+            if v == 0xFFFFFFFF {
+                Some("0xFFFFFFFF (no address set)".to_string())
+            } else {
+                Some(format!("0x{:08X}", v))
+            }
+        }
+        "smu_args" if data.len() >= 4 => {
+            let mut args = Vec::new();
+            let count = data.len() / 4;
+            for i in 0..count {
+                let off = i * 4;
+                if off + 4 <= data.len() {
+                    let mut c = Cursor::new(&data[off..off + 4]);
+                    if let Ok(v) = c.read_u32::<LittleEndian>() {
+                        args.push(format!("0x{:08X}", v));
+                    }
+                }
+            }
+            Some(format!("[{}]", args.join(", ")))
+        }
+        _ => None,
+    }
+}
+
+/// Read CPU model name from /proc/cpuinfo (Linux only)
+pub fn read_cpu_model() -> Option<String> {
+    let content = fs::read_to_string("/proc/cpuinfo").ok()?;
+    for line in content.lines() {
+        if line.starts_with("model name") {
+            return line.split(':').nth(1).map(|s| s.trim().to_string());
+        }
+    }
+    None
+}
+
+/// Read CPU topology info from /proc/cpuinfo
+pub fn read_cpu_topology() -> Option<CpuTopology> {
+    let content = fs::read_to_string("/proc/cpuinfo").ok()?;
+    let mut physical_ids = std::collections::HashSet::new();
+    let mut core_ids = std::collections::HashSet::new();
+    let mut logical_count = 0u32;
+
+    for line in content.lines() {
+        if line.starts_with("processor") {
+            logical_count += 1;
+        } else if line.starts_with("physical id")
+            && let Some(val) = line.split(':').nth(1)
+        {
+            physical_ids.insert(val.trim().to_string());
+        } else if line.starts_with("core id")
+            && let Some(val) = line.split(':').nth(1)
+        {
+            core_ids.insert(val.trim().to_string());
+        }
+    }
+
+    if logical_count == 0 {
+        return None;
+    }
+
+    let physical_cores = core_ids.len() as u32;
+    let smt = logical_count > physical_cores;
+
+    Some(CpuTopology {
+        logical_cpus: logical_count,
+        physical_cores,
+        sockets: physical_ids.len().max(1) as u32,
+        smt,
+    })
+}
+
+/// CPU topology information
+#[derive(Debug, Clone)]
+pub struct CpuTopology {
+    pub logical_cpus: u32,
+    pub physical_cores: u32,
+    pub sockets: u32,
+    pub smt: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

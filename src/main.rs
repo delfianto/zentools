@@ -292,53 +292,214 @@ fn handle_smu_check() -> Result<()> {
 }
 
 fn handle_smu_debug() -> Result<()> {
-    println!("=== SMU Driver Debug Information ===\n");
+    // ── Section 1: CPU Info ──────────────────────────────────────────────
+    println!("=== CPU Information ===\n");
 
-    match driver::list_sysfs_files() {
+    if let Some(model) = driver::read_cpu_model() {
+        println!("  Model: {}", model);
+    }
+    if let Some(topo) = driver::read_cpu_topology() {
+        println!(
+            "  Topology: {} cores / {} threads ({}SMT), {} socket(s)",
+            topo.physical_cores,
+            topo.logical_cpus,
+            if topo.smt { "" } else { "no " },
+            topo.sockets
+        );
+    }
+
+    // ── Section 2: Driver sysfs ──────────────────────────────────────────
+    println!("\n=== Driver sysfs ({}) ===\n", SMU_DRV_PATH);
+
+    let driver_ok = match driver::list_sysfs_files() {
         Ok(files) => {
-            println!("Available sysfs files:");
             for (name, info) in &files {
                 match info {
                     driver::SysfsFileInfo::Text(text) => {
-                        println!("  [{}]: {}", name, text);
+                        println!("  {:<20} {}", name, text);
                     }
                     driver::SysfsFileInfo::Binary(data) => {
-                        println!("  [{}]: <binary, {} bytes>", name, data.len());
-                        if data.len() <= 16 {
-                            let hex: Vec<String> = data.iter().map(|b| format!("{:02x}", b)).collect();
-                            println!("    hex: {}", hex.join(" "));
+                        if let Some(decoded) = driver::decode_binary_value(name, data) {
+                            println!("  {:<20} {}", name, decoded);
+                        } else {
+                            let hex: Vec<String> =
+                                data.iter().take(32).map(|b| format!("{:02x}", b)).collect();
+                            let suffix = if data.len() > 32 { " ..." } else { "" };
+                            println!(
+                                "  {:<20} ({} bytes) {}{}",
+                                name,
+                                data.len(),
+                                hex.join(" "),
+                                suffix
+                            );
                         }
                     }
                     driver::SysfsFileInfo::Error(e) => {
-                        println!("  [{}]: <error: {}>", name, e);
+                        println!("  {:<20} <error: {}>", name, e);
                     }
                 }
             }
+            true
         }
         Err(e) => {
-            eprintln!("Driver not accessible: {}", e);
-            return Ok(());
+            println!("  Not available: {}", e);
+            false
         }
-    }
+    };
 
-    println!("\n=== Parsed SMU Info ===\n");
-
-    match driver::read_info() {
-        Ok(info) => {
-            println!("SMU Version:      {}", info.version);
-            println!("Codename:         {}", info.codename.as_str());
-            println!("Driver Version:   {}", info.drv_version);
-            println!("PM Table Version: 0x{:X}", info.pm_table_version);
-            println!("PM Table Size:    {} bytes", info.pm_table_size);
-            if let Some(mp1) = info.mp1_if_version {
-                println!("MP1 IF Version:   {}", mp1);
+    // ── Section 3: Parsed SMU Info ───────────────────────────────────────
+    let smu_info = if driver_ok {
+        println!("\n=== SMU Info (parsed) ===\n");
+        match driver::read_info() {
+            Ok(info) => {
+                println!("  SMU Firmware:     {}", info.version);
+                println!("  CPU Codename:     {}", info.codename.as_str());
+                println!("  Generation:       {}", info.codename.generation());
+                println!("  Driver Version:   {}", info.drv_version);
+                println!("  PM Table Version: 0x{:06X}{}", info.pm_table_version,
+                    if pmtable::is_experimental(info.pm_table_version) { " [EXPERIMENTAL]" } else { "" }
+                );
+                println!("  PM Table Size:    {} bytes", info.pm_table_size);
+                if let Some(mp1) = info.mp1_if_version {
+                    println!("  MP1 IF Version:   {}", mp1);
+                }
+                Some(info)
+            }
+            Err(e) => {
+                println!("  Failed: {}", e);
+                None
             }
         }
-        Err(e) => {
-            eprintln!("Error reading SMU info: {}", e);
+    } else {
+        None
+    };
+
+    // ── Section 4: Direct Register Probes ────────────────────────────────
+    println!("\n=== Direct Register Probes ===\n");
+
+    let is_zen5 = smu_info
+        .as_ref()
+        .map(|i| i.codename.is_zen5())
+        .unwrap_or(false);
+
+    // SMN temperature
+    let smn_reader = smn::SmnReader::new(is_zen5);
+    if smn_reader.is_available() {
+        match smn_reader.read_tctl() {
+            Ok(temp) => println!("  Tctl (SMN):       {:.1} C", temp),
+            Err(e) => println!("  Tctl (SMN):       error - {}", e),
+        }
+
+        let max_ccds: u32 = if is_zen5 { 2 } else { 8 };
+        for i in 0..max_ccds {
+            match smn_reader.read_ccd_temp(i) {
+                Ok(Some(temp)) => println!("  CCD{} Temp (SMN):  {:.1} C", i, temp),
+                Ok(None) => {} // sensor not present
+                Err(_) => break,
+            }
+        }
+
+        // SVI voltage (Zen 5 only)
+        if is_zen5 {
+            if let Ok(Some(v)) = smn_reader.read_core_voltage() {
+                println!("  Core VID (SVI3):  {:.4} V", v);
+            }
+            if let Ok(Some(v)) = smn_reader.read_soc_voltage() {
+                println!("  SoC VID (SVI3):   {:.4} V", v);
+            }
+        }
+    } else {
+        println!("  SMN: not accessible (need root + PCI config access)");
+    }
+
+    // RAPL power
+    if let Ok(mut rapl) = msr::RaplReader::new() {
+        println!("  RAPL unit:        {:.4} uJ/tick", rapl.energy_unit_uj());
+        // Prime the counters
+        let _ = rapl.read_package_power();
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        if let Ok(Some(power)) = rapl.read_package_power() {
+            println!("  Pkg Power (RAPL): {:.2} W", power);
+        }
+        if let Ok(Some(power)) = rapl.read_core_power() {
+            println!("  Core Power (RAPL):{:.2} W", power);
+        } else {
+            println!("  Core Power (RAPL): N/A (expected on Zen 5 desktop)");
+        }
+    } else {
+        println!("  RAPL: not accessible (need root + msr module)");
+    }
+
+    // ── Section 5: PM Table Field Scan ───────────────────────────────────
+    if driver_ok {
+        println!("\n=== PM Table Field Scan ===\n");
+
+        match driver::read_pm_table(true) {
+            Ok(pm_data) => {
+                let named = pmtable::dump_named_fields(&pm_data);
+
+                if named.is_empty() {
+                    println!("  No mapped fields for version 0x{:06X}", pm_data.version);
+                } else {
+                    for (name, value, unit) in &named {
+                        println!("  {:<20} {:>10.2} {}", name, value, unit);
+                    }
+                }
+
+                // Scan for unmapped non-zero f32 values beyond the known fields
+                let known_max_offset = pmtable::get_field_map(pm_data.version)
+                    .map(|fields| fields.iter().map(|f| f.offset).max().unwrap_or(0))
+                    .unwrap_or(0);
+
+                let mut unmapped_count = 0;
+                let scan_start = if known_max_offset > 0 {
+                    known_max_offset + 4
+                } else {
+                    0
+                };
+
+                for i in (scan_start..pm_data.size()).step_by(4) {
+                    if let Some(val) = pm_data.read_f32(i)
+                        && val.is_finite()
+                        && val.abs() > 0.01
+                        && val.abs() < 100_000.0
+                    {
+                        unmapped_count += 1;
+                    }
+                }
+
+                if unmapped_count > 0 {
+                    println!(
+                        "\n  {} unmapped non-zero f32 values beyond offset 0x{:03X}",
+                        unmapped_count, scan_start
+                    );
+                    println!("  Use `zen smu pm-table -f --raw` to inspect them");
+                }
+
+                // Per-core data if available
+                if pmtable::has_per_core_fields(pm_data.version) {
+                    let metrics = pmtable::parse_pm_table(&pm_data);
+                    if !metrics.per_core.is_empty() {
+                        println!("\n  Per-core ({} cores):", metrics.per_core.len());
+                        for core in &metrics.per_core {
+                            println!(
+                                "    Core {:>2}: {:>7.0} MHz  {:>5.1} W  {:>5.1}% active",
+                                core.core_id,
+                                core.frequency_mhz.unwrap_or(0.0),
+                                core.power_w.unwrap_or(0.0),
+                                core.activity_pct.unwrap_or(0.0),
+                            );
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                println!("  PM table read failed: {}", e);
+            }
         }
     }
 
+    println!();
     Ok(())
 }
 
