@@ -577,9 +577,14 @@ fn handle_smu_pm_table(force: bool, raw: bool, update_interval: u64) -> Result<(
 fn handle_smu_monitor(interval: u64) -> Result<()> {
     let running = setup_signal_handler();
 
-    // Detect CPU generation for SMN reader
-    let is_zen5 = driver::read_info()
-        .map(|info| info.codename.is_zen5())
+    // Gather system info for header
+    let cpu_model = driver::read_cpu_model().unwrap_or_else(|| "Unknown".to_string());
+    let topo = driver::read_cpu_topology();
+    let smu_info = driver::read_info().ok();
+
+    let is_zen5 = smu_info
+        .as_ref()
+        .map(|i| i.codename.is_zen5())
         .unwrap_or(false);
 
     let smn_reader = smn::SmnReader::new(is_zen5);
@@ -587,7 +592,7 @@ fn handle_smu_monitor(interval: u64) -> Result<()> {
 
     let mut rapl_reader = msr::RaplReader::new().ok();
 
-    // First read to prime RAPL counters
+    // Prime RAPL counters
     if let Some(ref mut rapl) = rapl_reader {
         let _ = rapl.read_package_power();
         let _ = rapl.read_core_power();
@@ -604,7 +609,16 @@ fn handle_smu_monitor(interval: u64) -> Result<()> {
             rapl_reader.as_mut(),
         );
 
-        display_metrics(&metrics);
+        // Read CCD temps directly (not in read_metrics by default for all CCDs)
+        let mut ccd_temps: Vec<Option<f64>> = metrics.ccd_temps_c.clone();
+        if ccd_temps.is_empty() && smn_available {
+            let max_ccds: u32 = if is_zen5 { 2 } else { 8 };
+            if let Ok(temps) = smn_reader.read_all_ccd_temps(max_ccds) {
+                ccd_temps = temps;
+            }
+        }
+
+        display_monitor(&cpu_model, &topo, &smu_info, &metrics, &ccd_temps);
         std::thread::sleep(std::time::Duration::from_secs(interval));
     }
 
@@ -698,125 +712,183 @@ fn display_pm_table(force: bool, raw: bool) -> Result<()> {
     Ok(())
 }
 
-fn display_metrics(metrics: &CpuMetrics) {
-    let mut table = Table::new();
-    table
-        .load_preset(UTF8_FULL)
-        .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec![
-            Cell::new("Metric").set_alignment(CellAlignment::Left),
-            Cell::new("Value").set_alignment(CellAlignment::Right),
-        ]);
+fn display_monitor(
+    cpu_model: &str,
+    topo: &Option<driver::CpuTopology>,
+    smu_info: &Option<smu::SmuInfo>,
+    metrics: &CpuMetrics,
+    ccd_temps: &[Option<f64>],
+) {
+    let w = 74; // display width
+    let sep = "=".repeat(w);
+    let line = "-".repeat(w);
 
-    // Temperature
-    if let Some(t) = metrics.tctl_temp_c {
-        table.add_row(vec!["Tctl", &format!("{:.1} C", t)]);
+    // ── Header ───────────────────────────────────────────────────────────
+    println!("{}", sep);
+    println!(" zen monitor  [source: {}]", metrics.source);
+    println!("{}", sep);
+    println!(" CPU Model        {}", cpu_model);
+    if let Some(info) = smu_info {
+        println!(" Codename         {:<30} SMU {}", info.codename.as_str(), info.version);
     }
-    for (i, temp) in metrics.ccd_temps_c.iter().enumerate() {
-        if let Some(t) = temp {
-            table.add_row(vec![&format!("CCD{} Temp", i), &format!("{:.1} C", t)]);
-        }
+    if let Some(t) = topo {
+        let smt = if t.smt { "SMT on" } else { "SMT off" };
+        println!(" Cores            {} ({} threads, {})", t.physical_cores, t.logical_cpus, smt);
     }
+    println!("{}", sep);
 
-    // Power
-    if let Some(p) = metrics.package_power_w {
-        table.add_row(vec!["Package Power", &format!("{:.2} W", p)]);
-    }
-    if let Some(p) = metrics.core_power_w {
-        table.add_row(vec!["Core Power", &format!("{:.2} W", p)]);
-    }
-    if let Some(p) = metrics.soc_power_w {
-        table.add_row(vec!["SoC Power", &format!("{:.2} W", p)]);
-    }
-
-    // Voltage
-    if let Some(v) = metrics.core_voltage_v {
-        table.add_row(vec!["Core Voltage", &format!("{:.4} V", v)]);
-    }
-    if let Some(v) = metrics.soc_voltage_v {
-        table.add_row(vec!["SoC Voltage", &format!("{:.4} V", v)]);
-    }
-
-    // PBO Limits
-    if let (Some(limit), Some(current)) = (metrics.ppt_limit_w, metrics.ppt_current_w) {
-        table.add_row(vec![
-            "PPT",
-            &format!("{:.1} / {:.1} W", current, limit),
-        ]);
-    }
-    if let (Some(limit), Some(current)) = (metrics.tdc_limit_a, metrics.tdc_current_a) {
-        table.add_row(vec![
-            "TDC",
-            &format!("{:.1} / {:.1} A", current, limit),
-        ]);
-    }
-    if let (Some(limit), Some(current)) = (metrics.edc_limit_a, metrics.edc_current_a) {
-        table.add_row(vec![
-            "EDC",
-            &format!("{:.1} / {:.1} A", current, limit),
-        ]);
-    }
-
-    // Clocks
-    if let Some(f) = metrics.fclk_mhz {
-        table.add_row(vec!["FCLK", &format!("{:.0} MHz", f)]);
-    }
-    if let Some(u) = metrics.uclk_mhz {
-        table.add_row(vec!["UCLK", &format!("{:.0} MHz", u)]);
-    }
-    if let Some(m) = metrics.mclk_mhz {
-        table.add_row(vec!["MCLK", &format!("{:.0} MHz", m)]);
-    }
-
-    println!("AMD Ryzen CPU Monitor [source: {}]", metrics.source);
-    println!("{}", table);
-
-    // Per-core data
+    // ── Per-core table ───────────────────────────────────────────────────
     if !metrics.per_core.is_empty() {
-        let mut core_table = Table::new();
-        core_table
-            .load_preset(UTF8_FULL)
-            .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_header(vec![
-                Cell::new("Core"),
-                Cell::new("Freq (MHz)").set_alignment(CellAlignment::Right),
-                Cell::new("Power (W)").set_alignment(CellAlignment::Right),
-                Cell::new("Activity (%)").set_alignment(CellAlignment::Right),
-                Cell::new("Sleep (%)").set_alignment(CellAlignment::Right),
-            ]);
+        println!(
+            " {:>4}  {:>8}  {:>7}  {:>6}  {:>6}  {:>5}  {:>5}  {:>5}",
+            "Core", "Freq", "Power", "Volt", "Temp", "C0%", "C1%", "C6%"
+        );
+        println!("{}", line);
 
         for core in &metrics.per_core {
-            core_table.add_row(vec![
-                Cell::new(format!("{}", core.core_id)),
-                Cell::new(
-                    core.frequency_mhz
-                        .map(|v| format!("{:.0}", v))
-                        .unwrap_or_else(|| "-".to_string()),
-                )
-                .set_alignment(CellAlignment::Right),
-                Cell::new(
-                    core.power_w
-                        .map(|v| format!("{:.2}", v))
-                        .unwrap_or_else(|| "-".to_string()),
-                )
-                .set_alignment(CellAlignment::Right),
-                Cell::new(
-                    core.activity_pct
-                        .map(|v| format!("{:.1}", v))
-                        .unwrap_or_else(|| "-".to_string()),
-                )
-                .set_alignment(CellAlignment::Right),
-                Cell::new(
-                    core.sleep_pct
-                        .map(|v| format!("{:.1}", v))
-                        .unwrap_or_else(|| "-".to_string()),
-                )
-                .set_alignment(CellAlignment::Right),
-            ]);
-        }
+            let freq_str = core.frequency_mhz
+                .filter(|&f| f > 0.1)
+                .map(|f| format!("{:.0} MHz", f))
+                .unwrap_or_else(|| "Sleep".to_string());
 
-        println!("{}", core_table);
+            let power_str = core.power_w
+                .map(|p| format!("{:.3} W", p))
+                .unwrap_or_else(|| "-".to_string());
+
+            let volt_str = core.voltage_v
+                .filter(|&v| v > 0.1)
+                .map(|v| format!("{:.3}V", v))
+                .unwrap_or_else(|| "-".to_string());
+
+            let temp_str = core.temp_c
+                .filter(|&t| t > 0.1)
+                .map(|t| format!("{:.1}C", t))
+                .unwrap_or_else(|| "-".to_string());
+
+            let c0 = core.c0_pct.map(|v| format!("{:.1}", v)).unwrap_or_else(|| "-".to_string());
+            let c1 = core.cc1_pct.map(|v| format!("{:.1}", v)).unwrap_or_else(|| "-".to_string());
+            let c6 = core.cc6_pct.map(|v| format!("{:.1}", v)).unwrap_or_else(|| "-".to_string());
+
+            println!(
+                " {:>4}  {:>8}  {:>7}  {:>6}  {:>6}  {:>5}  {:>5}  {:>5}",
+                core.core_id, freq_str, power_str, volt_str, temp_str, c0, c1, c6
+            );
+        }
+        println!("{}", line);
     }
+
+    // ── Power & Voltage ──────────────────────────────────────────────────
+    println!();
+    let mut has_power = false;
+
+    if let Some(f) = metrics.peak_core_freq_mhz {
+        println!(" Peak Core Freq   {:.0} MHz", f);
+        has_power = true;
+    }
+    if let Some(t) = metrics.tctl_temp_c {
+        let peak_str = metrics.tjmax_c
+            .map(|tj| format!("  (TjMax: {:.0} C)", tj))
+            .unwrap_or_default();
+        println!(" Temperature      {:.1} C{}", t, peak_str);
+        has_power = true;
+    }
+
+    // CCD temperatures
+    for (i, temp) in ccd_temps.iter().enumerate() {
+        if let Some(t) = temp {
+            println!(" CCD{} Temp        {:.1} C", i, t);
+            has_power = true;
+        }
+    }
+
+    if let Some(p) = metrics.package_power_w.or(metrics.core_power_w) {
+        println!(" Package Power    {:.2} W", p);
+        has_power = true;
+    }
+    if metrics.package_power_w.is_some()
+        && let Some(p) = metrics.core_power_w
+    {
+        println!(" Core Power       {:.2} W", p);
+    }
+    if let Some(p) = metrics.soc_power_w {
+        println!(" SoC Power        {:.2} W", p);
+        has_power = true;
+    }
+
+    if let Some(v) = metrics.peak_voltage_v.or(metrics.core_voltage_v) {
+        println!(" Core Voltage     {:.4} V", v);
+        has_power = true;
+    }
+    if let Some(v) = metrics.avg_core_voltage_v {
+        println!(" Avg Core Voltage {:.4} V", v);
+    }
+    if let Some(v) = metrics.soc_voltage_v {
+        println!(" SoC Voltage      {:.4} V", v);
+    }
+
+    if has_power {
+        println!();
+    }
+
+    // ── PBO Limits ───────────────────────────────────────────────────────
+    let has_pbo = metrics.ppt_limit_w.is_some()
+        || metrics.tdc_limit_a.is_some()
+        || metrics.edc_limit_a.is_some();
+
+    if has_pbo {
+        println!(" {:<18} {:>8} {:>8} {:>6}", "Limit", "Value", "Max", "Use%");
+        println!("{}", line);
+
+        if let (Some(limit), Some(current)) = (metrics.ppt_limit_w, metrics.ppt_current_w) {
+            let pct = if limit > 0.0 { current / limit * 100.0 } else { 0.0 };
+            println!(" {:<18} {:>7.1}W {:>7.1}W {:>5.1}%", "PPT", current, limit, pct);
+        }
+        if let (Some(limit), Some(current)) = (metrics.tdc_limit_a, metrics.tdc_current_a) {
+            let pct = if limit > 0.0 { current / limit * 100.0 } else { 0.0 };
+            println!(" {:<18} {:>7.1}A {:>7.1}A {:>5.1}%", "TDC", current, limit, pct);
+        }
+        if let (Some(limit), Some(current)) = (metrics.edc_limit_a, metrics.edc_current_a) {
+            let pct = if limit > 0.0 { current / limit * 100.0 } else { 0.0 };
+            println!(" {:<18} {:>7.1}A {:>7.1}A {:>5.1}%", "EDC", current, limit, pct);
+        }
+        println!();
+    }
+
+    // ── Clocks ───────────────────────────────────────────────────────────
+    let has_clocks = metrics.fclk_mhz.is_some()
+        || metrics.uclk_mhz.is_some()
+        || metrics.mclk_mhz.is_some();
+
+    if has_clocks {
+        // Detect coupled mode
+        let coupled = match (metrics.uclk_mhz, metrics.mclk_mhz) {
+            (Some(u), Some(m)) if (u - m).abs() < 1.0 => "Coupled",
+            (Some(_), Some(_)) => "Decoupled",
+            _ => "Unknown",
+        };
+        println!(" Memory Mode      {}", coupled);
+
+        if let Some(f) = metrics.fclk_mhz {
+            let avg = metrics.fclk_avg_mhz
+                .map(|a| format!(" (avg: {:.0})", a))
+                .unwrap_or_default();
+            println!(" Fabric Clock     {:.0} MHz{}", f, avg);
+        }
+        if let Some(u) = metrics.uclk_mhz {
+            println!(" Uncore Clock     {:.0} MHz", u);
+        }
+        if let Some(m) = metrics.mclk_mhz {
+            println!(" Memory Clock     {:.0} MHz", m);
+        }
+        if let Some(v) = metrics.vddp_v {
+            println!(" cLDO_VDDP        {:.4} V", v);
+        }
+        if let Some(v) = metrics.vddg_v {
+            println!(" cLDO_VDDG        {:.4} V", v);
+        }
+    }
+
+    println!("{}", sep);
 }
 
 // =============================================================================

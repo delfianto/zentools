@@ -60,16 +60,26 @@ const ZEN2_FIELDS: &[PmTableField] = &[
 /// Per-core field offsets for Zen 2/3 (multiply core index by 4 and add to base)
 struct Zen2CoreOffsets {
     power_base: usize,
+    voltage_base: usize,
+    temp_base: usize,
     frequency_base: usize,
     activity_base: usize,
     sleep_base: usize,
+    c0_base: usize,
+    cc1_base: usize,
+    cc6_base: usize,
 }
 
 const ZEN2_CORE: Zen2CoreOffsets = Zen2CoreOffsets {
     power_base: 0x24C,
+    voltage_base: 0x26C,
+    temp_base: 0x28C,
     frequency_base: 0x30C,
     activity_base: 0x32C,
     sleep_base: 0x36C,
+    c0_base: 0x38C,
+    cc1_base: 0x3AC,
+    cc6_base: 0x3CC,
 };
 
 // =============================================================================
@@ -150,10 +160,13 @@ pub fn parse_pm_table(pm_table: &PmTableData) -> CpuMetrics {
             "SoC Power" => metrics.soc_power_w = Some(value),
             "Peak Voltage" => metrics.peak_voltage_v = Some(value),
             "SoC Voltage" => metrics.soc_voltage_v = Some(value),
-            "SoC Current" => {} // Not in CpuMetrics yet
-            "FCLK" | "FCLK Avg" => metrics.fclk_mhz = Some(value),
+            "SoC Current" => {}
+            "FCLK" => metrics.fclk_mhz = Some(value),
+            "FCLK Avg" => metrics.fclk_avg_mhz = Some(value),
             "UCLK" => metrics.uclk_mhz = Some(value),
             "MCLK" => metrics.mclk_mhz = Some(value),
+            "cLDO_VDDP" => metrics.vddp_v = Some(value),
+            "cLDO_VDDG" => metrics.vddg_v = Some(value),
             _ => {}
         }
     }
@@ -161,6 +174,32 @@ pub fn parse_pm_table(pm_table: &PmTableData) -> CpuMetrics {
     // Parse per-core data for versions that have it
     if has_per_core_fields(pm_table.version) {
         metrics.per_core = parse_per_core_zen2(pm_table);
+
+        // Derive peak frequency and average voltage from per-core data
+        let mut max_freq: f64 = 0.0;
+        let mut total_voltage: f64 = 0.0;
+        let mut voltage_count: u32 = 0;
+
+        for core in &metrics.per_core {
+            if let Some(f) = core.frequency_mhz
+                && f > max_freq
+            {
+                max_freq = f;
+            }
+            if let Some(v) = core.voltage_v
+                && v > 0.1
+            {
+                total_voltage += v;
+                voltage_count += 1;
+            }
+        }
+
+        if max_freq > 0.0 {
+            metrics.peak_core_freq_mhz = Some(max_freq);
+        }
+        if voltage_count > 0 {
+            metrics.avg_core_voltage_v = Some(total_voltage / voltage_count as f64);
+        }
     }
 
     metrics
@@ -185,12 +224,27 @@ fn parse_per_core_zen2(pm_table: &PmTableData) -> Vec<CoreMetrics> {
             power_w: pm_table
                 .read_f32(ZEN2_CORE.power_base + i * 4)
                 .map(|v| v as f64),
+            voltage_v: pm_table
+                .read_f32(ZEN2_CORE.voltage_base + i * 4)
+                .map(|v| v as f64),
+            temp_c: pm_table
+                .read_f32(ZEN2_CORE.temp_base + i * 4)
+                .map(|v| v as f64),
             frequency_mhz: freq.map(|f| f * 1000.0), // GHz -> MHz
             activity_pct: pm_table
                 .read_f32(ZEN2_CORE.activity_base + i * 4)
                 .map(|v| v as f64),
             sleep_pct: pm_table
                 .read_f32(ZEN2_CORE.sleep_base + i * 4)
+                .map(|v| v as f64),
+            c0_pct: pm_table
+                .read_f32(ZEN2_CORE.c0_base + i * 4)
+                .map(|v| v as f64),
+            cc1_pct: pm_table
+                .read_f32(ZEN2_CORE.cc1_base + i * 4)
+                .map(|v| v as f64),
+            cc6_pct: pm_table
+                .read_f32(ZEN2_CORE.cc6_base + i * 4)
                 .map(|v| v as f64),
         });
     }
