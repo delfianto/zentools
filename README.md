@@ -147,6 +147,24 @@ Zen 5 temperature register addresses and RAPL power monitoring approach.
 
 **[Death4two/RyzenSMUDebug-LINUX](https://github.com/Death4two/RyzenSMUDebug-LINUX)** — Granite Ridge SMU command references.
 
+## Disclaimer
+
+This software talks directly to your CPU's hardware registers. It reads PCI config space, MSR registers, and pokes around in memory controller internals that AMD pretends don't exist.
+
+**EPP control** is safe — it writes to the same sysfs interface your desktop environment uses. **SMU monitoring** is read-only — we look but don't touch. **Memory timing readout** is also read-only.
+
+That said:
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE, INCLUDING BUT NOT LIMITED TO:
+
+- Your CPU spontaneously deciding it's had enough
+- Incorrect readings leading to incorrect conclusions leading to incorrect BIOS settings leading to an expensive paperweight
+- The existential dread of discovering your "DDR5-6000" is actually running at 4800 because you forgot to enable EXPO
+- Kernel panics from loading sketchy out-of-tree kernel modules (looking at you, ryzen_smu)
+- Your cat walking across the keyboard while `zen smu monitor` is running with sudo
+
+If your silicon catches fire, you get to keep both pieces. We tested this on exactly one (1) AMD Ryzen 9 9950X and it's still alive. Your results may vary. Probably fine. No promises.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
