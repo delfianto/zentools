@@ -139,6 +139,42 @@ const ZEN5_FIELDS: &[PmTableField] = &[
     PmTableField { name: "CLDO_VDDP", offset: 0x434, data_type: FieldType::F32, unit: "V" },
 ];
 
+/// Per-core field offsets for Zen 5, 16-core table family (0x620205, 0x621201, 0x621202)
+/// Base offsets originate from a community draft against 0x620205 in
+/// https://github.com/hattedsquirrel/ryzen_monitor/issues/27 (comment by insunaa, 2025-08-06).
+///
+/// CONFIRMED by isolating single physical cores with `taskset` and diffing live PM table
+/// reads against real `/proc/cpuinfo`, `scaling_cur_freq`, and `topology/core_id` on a
+/// Ryzen 9 9950X (table version 0x620205): power, voltage, temp, and C0/CC1/CC6 all show a
+/// clean per-core-only delta when exactly one core is loaded, and the three C-state
+/// percentages independently sum to ~100% in both the idle and loaded snapshots.
+///
+/// The draft's frequency offset (element 461) was tested the same way and is WRONG — it
+/// reads a flat ~0.645 constant regardless of whether the targeted core is at its 614 MHz
+/// idle floor or boosting to 5.4 GHz. It has been deliberately omitted rather than kept as
+/// a plausible-looking but false field; there is currently no known per-core frequency
+/// offset for this table version.
+struct Zen5CoreOffsets {
+    power_base: usize,
+    voltage_base: usize,
+    temp_base: usize,
+    c0_base: usize,
+    cc1_base: usize,
+    cc6_base: usize,
+}
+
+const ZEN5_16CORE: Zen5CoreOffsets = Zen5CoreOffsets {
+    power_base: 301 * 4,   // 0x4B4 — confirmed
+    voltage_base: 317 * 4, // 0x4F4 — confirmed
+    temp_base: 333 * 4,    // 0x534 — confirmed
+    c0_base: 381 * 4,      // 0x5F4 — confirmed
+    cc1_base: 397 * 4,     // 0x634 — confirmed
+    cc6_base: 413 * 4,     // 0x674 — confirmed
+};
+
+/// Maximum cores for the Zen 5 16-core table family (2 CCDs x 8 cores)
+const ZEN5_16CORE_MAX: usize = 16;
+
 /// Get the field map for a given PM table version
 pub fn get_field_map(version: u32) -> Option<&'static [PmTableField]> {
     match version {
@@ -156,7 +192,17 @@ pub fn get_field_map(version: u32) -> Option<&'static [PmTableField]> {
 pub fn has_per_core_fields(version: u32) -> bool {
     matches!(
         version,
-        0x240903 | 0x240802 | 0x240803 | 0x480804 | 0x480805 | 0x480904
+        0x240903
+            | 0x240802
+            | 0x240803
+            | 0x480804
+            | 0x480805
+            | 0x480904
+            // Zen 5, 16-core family only (see Zen5CoreOffsets) — 8-core family
+            // (0x620105, 0x621101, 0x621102) has no reliable per-core mapping yet.
+            | 0x620205
+            | 0x621201
+            | 0x621202
     )
 }
 
@@ -232,6 +278,7 @@ pub fn parse_pm_table(pm_table: &PmTableData) -> CpuMetrics {
     if has_per_core_fields(pm_table.version) {
         metrics.per_core = match pm_table.version {
             0x480804 | 0x480805 | 0x480904 => parse_per_core_zen4(pm_table),
+            0x620205 | 0x621201 | 0x621202 => parse_per_core_zen5_16core(pm_table),
             _ => parse_per_core_zen2(pm_table),
         };
 
@@ -335,6 +382,50 @@ fn parse_per_core_zen4(pm_table: &PmTableData) -> Vec<CoreMetrics> {
                 .read_f32(ZEN4_CORE.temp_base + i * 4)
                 .map(|v| v as f64),
             // Zen 4 hwmon doesn't map frequency/voltage/C-states per core in PM table
+            ..Default::default()
+        });
+    }
+
+    cores
+}
+
+/// Parse per-core metrics from a Zen 5 16-core PM table (Granite Ridge, e.g. 9950X/9950X3D)
+/// See `Zen5CoreOffsets` doc comment for confirmation methodology and the known-missing
+/// frequency field.
+fn parse_per_core_zen5_16core(pm_table: &PmTableData) -> Vec<CoreMetrics> {
+    let mut cores = Vec::new();
+
+    for i in 0..ZEN5_16CORE_MAX {
+        let power = pm_table
+            .read_f32(ZEN5_16CORE.power_base + i * 4)
+            .map(|v| v as f64);
+
+        // Stop at first core with no power data (0.0 means unused/disabled slot)
+        match power {
+            Some(p) if p.is_finite() && p > 0.001 => {}
+            _ => break,
+        }
+
+        cores.push(CoreMetrics {
+            core_id: i as u32,
+            power_w: power,
+            voltage_v: pm_table
+                .read_f32(ZEN5_16CORE.voltage_base + i * 4)
+                .map(|v| v as f64),
+            temp_c: pm_table
+                .read_f32(ZEN5_16CORE.temp_base + i * 4)
+                .map(|v| v as f64),
+            c0_pct: pm_table
+                .read_f32(ZEN5_16CORE.c0_base + i * 4)
+                .map(|v| v as f64),
+            cc1_pct: pm_table
+                .read_f32(ZEN5_16CORE.cc1_base + i * 4)
+                .map(|v| v as f64),
+            cc6_pct: pm_table
+                .read_f32(ZEN5_16CORE.cc6_base + i * 4)
+                .map(|v| v as f64),
+            // frequency_mhz: no known offset (draft's element 461 disproven live)
+            // activity_pct/sleep_pct: no known Zen 5 mapping
             ..Default::default()
         });
     }
@@ -483,9 +574,19 @@ mod tests {
     }
 
     #[test]
-    fn test_no_per_core_fields_zen5() {
+    fn test_per_core_fields_zen5_16core() {
+        // 16-core family (9950X/9950X3D-class) has an experimental per-core mapping
+        assert!(has_per_core_fields(0x620205));
+        assert!(has_per_core_fields(0x621201));
+        assert!(has_per_core_fields(0x621202));
+    }
+
+    #[test]
+    fn test_no_per_core_fields_zen5_8core() {
+        // 8-core family has no reliable per-core mapping yet
         assert!(!has_per_core_fields(0x620105));
-        assert!(!has_per_core_fields(0x620205));
+        assert!(!has_per_core_fields(0x621101));
+        assert!(!has_per_core_fields(0x621102));
     }
 
     #[test]
@@ -916,6 +1017,83 @@ mod tests {
                 window[0].name, window[0].offset, window[1].name, window[1].offset
             );
         }
+    }
+
+    // =========================================================================
+    // Zen 5 per-core parsing (experimental, 16-core family)
+    // =========================================================================
+
+    #[test]
+    fn test_parse_per_core_zen5_16core() {
+        let mut data = vec![0u8; 0x994];
+
+        // Set up 4 active cores (of the 16 slots) with power/voltage/temp/c-states
+        for i in 0..4u32 {
+            let power = 5.0 + (i as f32) * 3.0;
+            let voltage = 1.0 + (i as f32) * 0.02;
+            let temp = 55.0 + (i as f32) * 2.0;
+            let c0 = 50.0 + (i as f32) * 10.0;
+            let off = (i as usize) * 4;
+
+            data[0x4B4 + off..0x4B8 + off].copy_from_slice(&power.to_le_bytes());
+            data[0x4F4 + off..0x4F8 + off].copy_from_slice(&voltage.to_le_bytes());
+            data[0x534 + off..0x538 + off].copy_from_slice(&temp.to_le_bytes());
+            data[0x5F4 + off..0x5F8 + off].copy_from_slice(&c0.to_le_bytes());
+        }
+
+        let pt = PmTableData { version: 0x621202, data };
+        let metrics = parse_pm_table(&pt);
+
+        assert_eq!(metrics.per_core.len(), 4);
+        assert_eq!(metrics.per_core[0].core_id, 0);
+        assert!((metrics.per_core[0].power_w.unwrap() - 5.0).abs() < 0.1);
+        assert!((metrics.per_core[0].voltage_v.unwrap() - 1.0).abs() < 0.01);
+        assert!((metrics.per_core[0].temp_c.unwrap() - 55.0).abs() < 0.1);
+        assert!(metrics.per_core[0].frequency_mhz.is_none(), "no known frequency offset");
+        assert!((metrics.per_core[0].c0_pct.unwrap() - 50.0).abs() < 0.1);
+
+        assert_eq!(metrics.per_core[3].core_id, 3);
+        assert!((metrics.per_core[3].power_w.unwrap() - 14.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_parse_per_core_zen5_16core_stops_at_zero_power() {
+        let mut data = vec![0u8; 0x994];
+
+        // Only core 0 and 1 have power > 0
+        let p0 = 10.0f32.to_le_bytes();
+        let p1 = 12.0f32.to_le_bytes();
+        data[0x4B4..0x4B8].copy_from_slice(&p0);
+        data[0x4B8..0x4BC].copy_from_slice(&p1);
+        // core 2 = 0.0 -> stop
+
+        let pt = PmTableData { version: 0x620205, data };
+        let metrics = parse_pm_table(&pt);
+        assert_eq!(metrics.per_core.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_per_core_zen5_16core_all_versions_use_same_layout() {
+        for version in [0x620205u32, 0x621201, 0x621202] {
+            let mut data = vec![0u8; 0x994];
+            data[0x4B4..0x4B8].copy_from_slice(&7.5f32.to_le_bytes());
+
+            let pt = PmTableData { version, data };
+            let metrics = parse_pm_table(&pt);
+            assert_eq!(metrics.per_core.len(), 1, "version 0x{:X}", version);
+            assert!((metrics.per_core[0].power_w.unwrap() - 7.5).abs() < 0.1);
+        }
+    }
+
+    #[test]
+    fn test_zen5_16core_min_table_size_fits_max_offset() {
+        // Highest byte accessed (core 15 of the CC6 array) must fit in 0x994 bytes
+        let highest_offset = ZEN5_16CORE.cc6_base + (ZEN5_16CORE_MAX - 1) * 4;
+        assert!(
+            highest_offset + 4 <= 0x994,
+            "offset 0x{:x} exceeds known table size 0x994",
+            highest_offset
+        );
     }
 
     // =========================================================================

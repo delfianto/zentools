@@ -103,7 +103,26 @@ Note: Offsets shifted dramatically from Zen 2/3 (Tctl moved from `0x014` to `0x4
 | `0x414` | CLDO_VDDG_CCD | V |
 | `0x434` | CLDO_VDDP | V |
 
-**Unmapped**: PPT/TDC/EDC, Tctl, per-core power/frequency/temperature. The 2452-byte table has ~613 potential f32 fields — only 8 are identified. AMD does not publish PM table documentation for any generation.
+**Per-core field map (16-core family only: `0x620205`, `0x621201`, `0x621202`)**: Base offsets originate from a community draft in `hattedsquirrel/ryzen_monitor` issue #27 (comment by insunaa, 2025-08-06, against table version `0x620205`).
+
+**Confirmed live** against a Ryzen 9 9950X (table version `0x620205`) by pinning single physical cores with `taskset`, diffing PM table reads taken before/after loading exactly one core, and cross-checking against `/proc/cpuinfo`, `scaling_cur_freq`, and `topology/core_id`:
+
+| Offset (base) | Field | Stride | Unit | Status |
+|---------------|-------|--------|------|--------|
+| `0x4B4` | Core Power | 4 bytes x 16 cores | W | **Confirmed** — clean single-core delta (e.g. 0.7 W idle -> 18.1 W loaded), other cores unaffected |
+| `0x4F4` | Core Voltage | 4 bytes x 16 cores | V | **Confirmed** — rises with load on the targeted core only (e.g. 0.84 V -> 1.32 V) |
+| `0x534` | Core Temperature | 4 bytes x 16 cores | C | **Confirmed** — targeted core jumps ~40C, others roughly flat |
+| `0x5F4` | Core C0 residency | 4 bytes x 16 cores | % | **Confirmed** — idle ~8%, loaded ~100% on the targeted core |
+| `0x634` | Core CC1 residency | 4 bytes x 16 cores | % | **Confirmed** — inversely tracks C0 as expected |
+| `0x674` | Core CC6 residency | 4 bytes x 16 cores | % | **Confirmed** — inversely tracks C0 as expected |
+
+Sanity check: C0 + CC1 + CC6 sums to ~100% independently in both idle and loaded snapshots, which is a strong cross-validation these three offsets are correct together, not just individually plausible.
+
+**Disproven**: the draft's frequency offset (float element 461) reads a flat ~0.645 constant regardless of real core frequency (verified against a core that went from 614 MHz idle to 5.4 GHz boost with zero change at that offset). It has been deliberately left unmapped rather than shipped as a plausible-but-wrong value — there is currently no known per-core frequency offset for this table version.
+
+The 8-core family (`0x620105`, `0x621101`, `0x621102`) has a rougher, internally inconsistent community draft (duplicate/conflicting offset assignments) and was not ported — it needs fresh reverse-engineering rather than blind porting.
+
+**Still unmapped**: PPT/TDC/EDC, per-core frequency, Tctl (not needed via PM table — the same value is available via the direct SMN register, see `DETECTION.md`). The 2452-byte table has ~613 potential f32 fields — only 14 are identified across the system-level and per-core maps. AMD does not publish PM table documentation for any generation.
 
 ## Reverse Engineering
 
