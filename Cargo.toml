@@ -19,6 +19,7 @@ byteorder = "1"
 clap = { version = "4", features = ["derive"] }
 comfy-table = "7"
 ctrlc = "3"
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm", "std"] }
 thiserror = "2"
 
 [profile.release]

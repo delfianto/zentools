@@ -10,8 +10,9 @@ src/
   cmd/
     mod.rs          Command handler module declarations
     epp.rs          EPP command handlers + display
-    smu.rs          SMU command handlers + display (monitor, debug, pm-table, info)
+    smu.rs          SMU command handlers + display (debug, pm-table, info) — `monitor` delegates to tui.rs
     mem.rs          Memory timing command handler + display
+    tui.rs          Ratatui dashboard for `smu monitor` (color-coded table, sparkline history, keyboard interaction)
   smu/
     mod.rs          Tiered metrics orchestrator (PM table + direct registers)
     types.rs        Shared types: CpuCodename, SmuError, CpuMetrics, etc.
