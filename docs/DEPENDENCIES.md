@@ -8,7 +8,8 @@
 | [byteorder](https://crates.io/crates/byteorder) | 1.x | Little-endian binary parsing (PM table, sysfs files) |
 | [clap](https://crates.io/crates/clap) | 4.x | CLI argument parsing with derive macros |
 | [comfy-table](https://crates.io/crates/comfy-table) | 7.x | Unicode table formatting for terminal output |
-| [ctrlc](https://crates.io/crates/ctrlc) | 3.x | Signal handling for clean monitor loop exit (Ctrl+C) |
+| [ctrlc](https://crates.io/crates/ctrlc) | 3.x | Signal handling for clean loop exit on the `pm-table -u` continuous mode (Ctrl+C) |
+| [ratatui](https://crates.io/crates/ratatui) | 0.30.x | Terminal UI for `zen smu monitor` (color-coded table, sparkline history, keyboard input). Re-exports `crossterm` so it isn't a separate direct dependency. |
 | [thiserror](https://crates.io/crates/thiserror) | 2.x | Derive macro for library error types (`SmuError`, `EppError`) |
 
 ## System Dependencies
