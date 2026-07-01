@@ -4,7 +4,7 @@ use anyhow::Result;
 use comfy_table::{presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use zentools::smu::{self, driver, msr, pmtable, smn, CpuMetrics, SmuInfo, SMU_DRV_PATH};
+use zentools::smu::{self, driver, msr, pmtable, smn, CoreMetrics, CpuMetrics, SmuInfo, SMU_DRV_PATH};
 
 use crate::SmuCommands;
 
@@ -518,13 +518,7 @@ fn display_monitor(
         for core in &metrics.per_core {
             cores.add_row(vec![
                 Cell::new(core.core_id),
-                Cell::new(
-                    core.frequency_mhz
-                        .filter(|&f| f > 0.1)
-                        .map(|f| format!("{:.0}", f))
-                        .unwrap_or_else(|| "Sleep".into()),
-                )
-                .set_alignment(CellAlignment::Right),
+                Cell::new(freq_or_state_label(core)).set_alignment(CellAlignment::Right),
                 Cell::new(fmt_opt_f(core.power_w, 2)).set_alignment(CellAlignment::Right),
                 Cell::new(fmt_opt_f(core.voltage_v.filter(|&v| v > 0.1), 3))
                     .set_alignment(CellAlignment::Right),
@@ -735,6 +729,32 @@ fn display_monitor(
 // =============================================================================
 // Utilities
 // =============================================================================
+
+/// Freq column content: real MHz when known (Zen 2/3), otherwise a state derived
+/// from C-state residency (Zen 5), otherwise "-" when neither is available (Zen 4).
+/// "Sleep" is only used when frequency itself is known to read ~0 — it should never
+/// be shown just because frequency is unmapped for this generation.
+fn freq_or_state_label(core: &CoreMetrics) -> String {
+    if let Some(f) = core.frequency_mhz {
+        if f > 0.1 {
+            return format!("{:.0}", f);
+        }
+        return "Sleep".to_string();
+    }
+
+    match (core.c0_pct, core.cc1_pct, core.cc6_pct) {
+        (Some(c0), Some(cc1), Some(cc6)) => {
+            if c0 >= cc1 && c0 >= cc6 {
+                "Active".to_string()
+            } else if cc6 >= cc1 {
+                "Deep Sleep".to_string()
+            } else {
+                "Light Sleep".to_string()
+            }
+        }
+        _ => "-".to_string(),
+    }
+}
 
 fn fmt_opt(v: Option<f64>) -> String {
     v.map(|v| format!("{:.1}", v))
