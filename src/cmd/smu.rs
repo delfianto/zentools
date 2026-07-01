@@ -4,7 +4,7 @@ use anyhow::Result;
 use comfy_table::{presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use zentools::smu::{driver, msr, pmtable, smn, SMU_DRV_PATH};
+use zentools::smu::{cpufreq, driver, msr, pmtable, smn, SMU_DRV_PATH};
 
 use crate::SmuCommands;
 
@@ -41,6 +41,14 @@ fn check() -> Result<()> {
         println!("[OK] SMN access available (temperature monitoring)");
     } else {
         println!("[--] SMN access unavailable (requires root)");
+    }
+
+    match cpufreq::CpuFreqReader::new() {
+        Some(reader) => println!(
+            "[OK] cpufreq access available ({} cores, per-core frequency, no root needed)",
+            reader.core_ids().count()
+        ),
+        None => println!("[--] cpufreq access unavailable (no cpufreq driver detected)"),
     }
 
     println!();
@@ -229,6 +237,29 @@ fn debug() -> Result<()> {
         }
     } else {
         println!("  RAPL: not accessible (need root + msr module)");
+    }
+
+    match cpufreq::CpuFreqReader::new() {
+        Some(reader) => {
+            let count = reader.core_ids().count();
+            let sample: Vec<String> = reader
+                .core_ids()
+                .take(4)
+                .map(|id| {
+                    reader
+                        .read_core_mhz(id)
+                        .map(|mhz| format!("core{id}={mhz:.0}MHz"))
+                        .unwrap_or_else(|| format!("core{id}=?"))
+                })
+                .collect();
+            println!(
+                "  cpufreq:          {} cores, no root needed ({}{})",
+                count,
+                sample.join(", "),
+                if count > 4 { ", ..." } else { "" }
+            );
+        }
+        None => println!("  cpufreq: not accessible (no cpufreq driver detected)"),
     }
 
     // ── PM Table Field Scan ──────────────────────────────────────────────

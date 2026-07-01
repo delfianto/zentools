@@ -1,10 +1,12 @@
 //! AMD Ryzen SMU interface
 //!
 //! Provides access to AMD Ryzen CPU telemetry through multiple data sources:
-//! - **Tier 1**: Direct hardware reads via MSR (RAPL power) and SMN (temperature)
+//! - **Tier 1**: Direct hardware reads via MSR (RAPL power), SMN (temperature),
+//!   and the kernel's own cpufreq sysfs (per-core frequency)
 //! - **Tier 2**: ryzen_smu kernel driver sysfs interface (PM table)
 //! - **Tier 3**: Graceful fallback with partial data
 
+pub mod cpufreq;
 pub mod driver;
 pub mod mem;
 pub mod msr;
@@ -18,7 +20,11 @@ pub use types::*;
 ///
 /// Tries the PM table first (most complete), then fills gaps with direct
 /// register reads. Returns whatever data is available.
-pub fn read_metrics(smn_reader: Option<&smn::SmnReader>, rapl: Option<&mut msr::RaplReader>) -> CpuMetrics {
+pub fn read_metrics(
+    smn_reader: Option<&smn::SmnReader>,
+    rapl: Option<&mut msr::RaplReader>,
+    cpufreq_reader: Option<&cpufreq::CpuFreqReader>,
+) -> CpuMetrics {
     let mut metrics = CpuMetrics::default();
     let mut used_pmtable = false;
     let mut used_direct = false;
@@ -28,6 +34,43 @@ pub fn read_metrics(smn_reader: Option<&smn::SmnReader>, rapl: Option<&mut msr::
         let pm_metrics = pmtable::parse_pm_table(&pm_data);
         metrics = pm_metrics;
         used_pmtable = true;
+    }
+
+    // Tier 1: Per-core frequency from cpufreq (APERF/MPERF-backed, no root needed).
+    // Backfills whatever the PM table didn't map (Zen 4/5), or synthesizes a
+    // frequency-only per-core list when there's no PM table data at all.
+    if let Some(reader) = cpufreq_reader {
+        if metrics.per_core.is_empty() {
+            for core_id in reader.core_ids() {
+                let frequency_mhz = reader.read_core_mhz(core_id);
+                if frequency_mhz.is_some() {
+                    used_direct = true;
+                }
+                metrics.per_core.push(CoreMetrics {
+                    core_id,
+                    frequency_mhz,
+                    ..Default::default()
+                });
+            }
+        } else {
+            for core in &mut metrics.per_core {
+                if core.frequency_mhz.is_none()
+                    && let Some(mhz) = reader.read_core_mhz(core.core_id)
+                {
+                    core.frequency_mhz = Some(mhz);
+                    used_direct = true;
+                }
+            }
+        }
+
+        if let Some(max_freq) = metrics
+            .per_core
+            .iter()
+            .filter_map(|c| c.frequency_mhz)
+            .fold(None, |acc: Option<f64>, f| Some(acc.map_or(f, |a| a.max(f))))
+        {
+            metrics.peak_core_freq_mhz = Some(max_freq);
+        }
     }
 
     // Tier 1: Fill gaps with direct register reads
@@ -181,7 +224,7 @@ mod tests {
         // does have it loaded (e.g. real Ryzen hardware), Tier 2 succeeds on its own
         // and the source becomes PmTable instead — same convention as the
         // driver-presence guards in driver.rs's tests.
-        let metrics = read_metrics(None, None);
+        let metrics = read_metrics(None, None, None);
 
         if !std::path::Path::new(SMU_DRV_PATH).exists() {
             assert_eq!(metrics.source, MetricsSource::DirectRegisters);
@@ -197,7 +240,7 @@ mod tests {
     fn test_read_metrics_with_unavailable_smn() {
         // SMN reader pointing to nonexistent device
         let smn = smn::SmnReader::with_device("/nonexistent".to_string(), false);
-        let metrics = read_metrics(Some(&smn), None);
+        let metrics = read_metrics(Some(&smn), None, None);
         // SMN is "available" check will fail, so no data filled
         assert!(metrics.tctl_temp_c.is_none());
     }
