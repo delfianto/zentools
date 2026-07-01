@@ -174,13 +174,23 @@ mod tests {
 
     #[test]
     fn test_read_metrics_no_sources() {
-        // Both sources None => should return default metrics
+        // Both direct-register sources None => only Tier 2 (PM table) can contribute,
+        // and it reads the real ryzen_smu driver unconditionally regardless of the
+        // arguments passed here. On a machine without the driver loaded, that read
+        // fails and metrics fall back to empty DirectRegisters. On a machine that
+        // does have it loaded (e.g. real Ryzen hardware), Tier 2 succeeds on its own
+        // and the source becomes PmTable instead — same convention as the
+        // driver-presence guards in driver.rs's tests.
         let metrics = read_metrics(None, None);
-        assert_eq!(metrics.source, MetricsSource::DirectRegisters);
-        // All fields should be None (no driver, no SMN, no RAPL)
-        assert!(metrics.tctl_temp_c.is_none());
-        assert!(metrics.package_power_w.is_none());
-        assert!(metrics.core_voltage_v.is_none());
+
+        if !std::path::Path::new(SMU_DRV_PATH).exists() {
+            assert_eq!(metrics.source, MetricsSource::DirectRegisters);
+            assert!(metrics.tctl_temp_c.is_none());
+            assert!(metrics.package_power_w.is_none());
+            assert!(metrics.core_voltage_v.is_none());
+        } else {
+            assert_eq!(metrics.source, MetricsSource::PmTable);
+        }
     }
 
     #[test]
