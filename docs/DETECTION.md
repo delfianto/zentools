@@ -34,6 +34,21 @@ Full mapping: 25 codenames from Zen through Zen 5. See `CpuCodename::from_u32()`
 - Power = energy_delta * energy_unit / time_delta
 - Requires: root + `msr` kernel module (`modprobe msr`)
 
+**cpufreq (`smu/cpufreq.rs`)** — per-core frequency via `/sys/devices/system/cpu/cpuN/cpufreq/scaling_cur_freq`:
+- On modern kernels this is backed by the APERF/MPERF hardware counter ratio (actual cycles
+  executed vs. reference cycles), not a readback of a requested P-state — the same source
+  tools like `btop` use. It's what powers CPPC/amd-pstate-active-mode reporting, where there
+  is no "requested frequency" to read back at all.
+- Maps physical core -> representative logical CPU via `topology/core_id` (lowest-numbered
+  SMT sibling), since PM table per-core arrays are indexed by physical core.
+- No root, no kernel module beyond whatever cpufreq driver ships in-tree (amd-pstate,
+  acpi-cpufreq, etc.) — expected to be present on virtually any Zen 2+ system running a
+  reasonably current kernel. `CpuFreqReader::new()` probes availability once and returns
+  `None` if cpufreq sysfs isn't usable, so callers degrade gracefully (no frequency shown)
+  rather than erroring.
+- Backfills whichever cores the PM table's own field map left as `None` (Zen 4/5), or
+  synthesizes a frequency-only per-core list when there's no PM table data at all.
+
 ### Tier 2: ryzen_smu Kernel Driver
 
 Reads from `/sys/kernel/ryzen_smu_drv/`:

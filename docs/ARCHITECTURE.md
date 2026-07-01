@@ -21,6 +21,7 @@ src/
     mem.rs          UMC memory timing register reader
     smn.rs          SMN register reader (temperature, voltage via PCI config)
     msr.rs          MSR reader (RAPL power via /dev/cpu/N/msr)
+    cpufreq.rs      Per-core frequency via Linux cpufreq sysfs (no root, no kernel module)
 ```
 
 ## Design Principles
@@ -44,6 +45,7 @@ This means basic monitoring works without the kernel module — just root access
 | `smu/driver.rs` | `/sys/kernel/ryzen_smu_drv/*` | SMU info, PM table binary |
 | `smu/smn.rs` | `/sys/bus/pci/devices/0000:00:00.0/config` (PCI regs 0x60/0x64) | Temperature, SVI voltage |
 | `smu/msr.rs` | `/dev/cpu/N/msr` | RAPL energy counters |
+| `smu/cpufreq.rs` | `/sys/devices/system/cpu/cpuN/cpufreq/scaling_cur_freq` | Per-core frequency (APERF/MPERF-backed) |
 | `smu/mem.rs` | SMN registers 0x50000-0x50260 | DDR4/DDR5 memory timings |
 | `smu/pmtable.rs` | (parses binary data from driver.rs) | Version-specific field extraction |
 

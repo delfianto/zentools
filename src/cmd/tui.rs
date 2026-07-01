@@ -16,7 +16,7 @@ use ratatui::widgets::{Block, Cell, Paragraph, Row, Sparkline, Table};
 use ratatui::Frame;
 
 use zentools::smu::driver::{self, CpuTopology};
-use zentools::smu::{self, msr, smn, CoreMetrics, CpuMetrics, SmuInfo};
+use zentools::smu::{self, cpufreq, msr, smn, CoreMetrics, CpuMetrics, SmuInfo};
 
 const HISTORY_LEN: usize = 120;
 
@@ -42,6 +42,7 @@ struct App {
     smn_reader: smn::SmnReader,
     smn_available: bool,
     rapl: Option<msr::RaplReader>,
+    cpufreq_reader: Option<cpufreq::CpuFreqReader>,
     metrics: CpuMetrics,
     ccd_temps: Vec<Option<f64>>,
     power_history: VecDeque<Option<u64>>,
@@ -69,6 +70,8 @@ impl App {
             let _ = r.read_core_power();
         }
 
+        let cpufreq_reader = cpufreq::CpuFreqReader::new();
+
         Self {
             cpu_model,
             topo,
@@ -77,6 +80,7 @@ impl App {
             smn_reader,
             smn_available,
             rapl,
+            cpufreq_reader,
             metrics: CpuMetrics::default(),
             ccd_temps: Vec::new(),
             power_history: VecDeque::with_capacity(HISTORY_LEN),
@@ -98,6 +102,7 @@ impl App {
                 None
             },
             self.rapl.as_mut(),
+            self.cpufreq_reader.as_ref(),
         );
 
         let mut ccd_temps = metrics.ccd_temps_c.clone();
@@ -223,8 +228,8 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
 fn draw_core_table(frame: &mut Frame, area: Rect, app: &App) {
     if app.metrics.per_core.is_empty() {
         let para = Paragraph::new(
-            "No per-core data available.\nRequires the ryzen_smu driver with a PM table \
-             version that has a known per-core field mapping.",
+            "No per-core data available.\nNeeds either the ryzen_smu driver (power/volt/temp/\
+             C-states) or a Linux cpufreq driver (frequency only) — neither was detected.",
         )
         .block(Block::bordered().title(" Per-Core "))
         .dim();
@@ -243,7 +248,7 @@ fn draw_core_table(frame: &mut Frame, area: Rect, app: &App) {
         .iter()
         .map(|core| {
             let state = freq_or_state_label(core);
-            let state_style = state_style(&state);
+            let state_style = freq_state_style(core);
             Row::new(vec![
                 Cell::new(format!("{:>2}", core.core_id)),
                 Cell::new(state).style(state_style),
@@ -419,14 +424,32 @@ fn freq_or_state_label(core: &CoreMetrics) -> String {
     }
 }
 
-fn state_style(label: &str) -> Style {
-    match label {
-        "Active" => Style::new().fg(Color::Green).bold(),
-        "Light Sleep" => Style::new().fg(Color::Cyan),
-        "Deep Sleep" => Style::new().fg(Color::DarkGray),
-        "Sleep" | "-" => Style::new().fg(Color::DarkGray),
-        s if s.chars().all(|c| c.is_ascii_digit()) => Style::new().fg(Color::Green),
-        _ => Style::new(),
+/// Frequency isn't a "danger" metric the way temp/power are — higher is not worse — so
+/// this only distinguishes idle-floor from actively-running, rather than a red/yellow/
+/// green threshold ladder. Idle-floor threshold is set just above this CPU's observed
+/// ~614-645 MHz park frequency.
+const IDLE_FLOOR_MHZ: f64 = 900.0;
+
+fn freq_state_style(core: &CoreMetrics) -> Style {
+    if let Some(f) = core.frequency_mhz {
+        return if f > IDLE_FLOOR_MHZ {
+            Style::new().fg(Color::Green)
+        } else {
+            Style::new().fg(Color::DarkGray)
+        };
+    }
+
+    match (core.c0_pct, core.cc1_pct, core.cc6_pct) {
+        (Some(c0), Some(cc1), Some(cc6)) => {
+            if c0 >= cc1 && c0 >= cc6 {
+                Style::new().fg(Color::Green).bold()
+            } else if cc6 >= cc1 {
+                Style::new().fg(Color::DarkGray)
+            } else {
+                Style::new().fg(Color::Cyan)
+            }
+        }
+        _ => Style::new().fg(Color::DarkGray),
     }
 }
 
@@ -511,6 +534,29 @@ mod tests {
     fn test_freq_or_state_label_no_data() {
         let core = core_with(None, None, None, None);
         assert_eq!(freq_or_state_label(&core), "-");
+    }
+
+    #[test]
+    fn test_freq_state_style_running_vs_idle_floor() {
+        let running = CoreMetrics {
+            frequency_mhz: Some(4500.0),
+            ..Default::default()
+        };
+        let parked = CoreMetrics {
+            frequency_mhz: Some(614.0),
+            ..Default::default()
+        };
+        assert_eq!(freq_state_style(&running), Style::new().fg(Color::Green));
+        assert_eq!(freq_state_style(&parked), Style::new().fg(Color::DarkGray));
+    }
+
+    #[test]
+    fn test_freq_state_style_falls_back_to_cstates() {
+        let active = core_with(None, Some(99.0), Some(1.0), Some(0.0));
+        assert_eq!(freq_state_style(&active), Style::new().fg(Color::Green).bold());
+
+        let no_data = core_with(None, None, None, None);
+        assert_eq!(freq_state_style(&no_data), Style::new().fg(Color::DarkGray));
     }
 
     #[test]
