@@ -51,20 +51,21 @@ pub fn read_info() -> Result<SmuInfo, SmuError> {
 /// Read SMU information without checking driver (for internal use after check)
 pub fn read_info_unchecked() -> Result<SmuInfo, SmuError> {
     let version_str = read_sysfs_string("version")?;
-    let version: SmuVersion = version_str.parse().map_err(|e: String| SmuError::ParseError {
-        path: format!("{}/version", SMU_DRV_PATH),
-        reason: e,
-    })?;
+    let version: SmuVersion = version_str
+        .parse()
+        .map_err(|e: String| SmuError::ParseError {
+            path: format!("{}/version", SMU_DRV_PATH),
+            reason: e,
+        })?;
 
     let codename_str = read_sysfs_string("codename")?;
-    let codename_val =
-        codename_str
-            .trim()
-            .parse::<u32>()
-            .map_err(|e| SmuError::ParseError {
-                path: format!("{}/codename", SMU_DRV_PATH),
-                reason: format!("Failed to parse codename: {}", e),
-            })?;
+    let codename_val = codename_str
+        .trim()
+        .parse::<u32>()
+        .map_err(|e| SmuError::ParseError {
+            path: format!("{}/codename", SMU_DRV_PATH),
+            reason: format!("Failed to parse codename: {}", e),
+        })?;
     let codename = CpuCodename::from_u32(codename_val);
 
     let drv_version = read_sysfs_string("drv_version")?;

@@ -246,7 +246,10 @@ mod tests {
                 valid_count += 1;
             }
         }
-        assert!(valid_count > 200, "most VID values should produce valid voltages");
+        assert!(
+            valid_count > 200,
+            "most VID values should produce valid voltages"
+        );
     }
 
     // =========================================================================
@@ -256,16 +259,16 @@ mod tests {
     #[test]
     fn test_ccd_temp_base_addresses_zen5() {
         assert_eq!(ZEN5_CCD_TEMP_BASE, 0x00059b08);
-        assert_eq!(ZEN5_CCD_TEMP_BASE + 0 * 4, 0x00059b08); // CCD0
-        assert_eq!(ZEN5_CCD_TEMP_BASE + 1 * 4, 0x00059b0c); // CCD1
+        assert_eq!(ZEN5_CCD_TEMP_BASE, 0x00059b08); // CCD0
+        assert_eq!(ZEN5_CCD_TEMP_BASE + 4, 0x00059b0c); // CCD1
         assert_eq!(ZEN5_CCD_TEMP_BASE + 7 * 4, 0x00059b24); // CCD7 (max for EPYC)
     }
 
     #[test]
     fn test_ccd_temp_base_addresses_legacy() {
         assert_eq!(LEGACY_CCD_TEMP_BASE, 0x00059954);
-        assert_eq!(LEGACY_CCD_TEMP_BASE + 0 * 4, 0x00059954);
-        assert_eq!(LEGACY_CCD_TEMP_BASE + 1 * 4, 0x00059958);
+        assert_eq!(LEGACY_CCD_TEMP_BASE, 0x00059954);
+        assert_eq!(LEGACY_CCD_TEMP_BASE + 4, 0x00059958);
     }
 
     #[test]

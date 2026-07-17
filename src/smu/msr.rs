@@ -46,11 +46,12 @@ fn read_msr(cpu: u32, msr: u64) -> Result<u64, SmuError> {
     })?;
 
     let mut buf = [0u8; 8];
-    file.read_at(&mut buf, msr).map_err(|e| SmuError::MsrError {
-        cpu,
-        msr,
-        reason: e.to_string(),
-    })?;
+    file.read_at(&mut buf, msr)
+        .map_err(|e| SmuError::MsrError {
+            cpu,
+            msr,
+            reason: e.to_string(),
+        })?;
 
     Ok(u64::from_le_bytes(buf))
 }
@@ -105,21 +106,20 @@ impl RaplReader {
         // Counter is 32-bit
         let energy = energy_raw as u32 as u64;
 
-        let power = if let (Some(prev_energy), Some(prev_time)) =
-            (self.prev_pkg_energy, self.prev_time)
-        {
-            let elapsed_ms = prev_time.elapsed().as_millis() as f64;
-            if elapsed_ms > 0.0 {
-                let delta = energy_delta_u32(prev_energy, energy);
-                let energy_uj = delta as f64 * self.energy_unit_uj;
-                // Power (W) = energy (uJ) / time (ms) / 1000
-                Some(energy_uj / elapsed_ms / 1000.0)
+        let power =
+            if let (Some(prev_energy), Some(prev_time)) = (self.prev_pkg_energy, self.prev_time) {
+                let elapsed_ms = prev_time.elapsed().as_millis() as f64;
+                if elapsed_ms > 0.0 {
+                    let delta = energy_delta_u32(prev_energy, energy);
+                    let energy_uj = delta as f64 * self.energy_unit_uj;
+                    // Power (W) = energy (uJ) / time (ms) / 1000
+                    Some(energy_uj / elapsed_ms / 1000.0)
+                } else {
+                    None
+                }
             } else {
                 None
-            }
-        } else {
-            None
-        };
+            };
 
         self.prev_pkg_energy = Some(energy);
         self.prev_time = Some(now);
@@ -137,20 +137,19 @@ impl RaplReader {
         };
         let energy = energy_raw as u32 as u64;
 
-        let power = if let (Some(prev_energy), Some(prev_time)) =
-            (self.prev_core_energy, self.prev_time)
-        {
-            let elapsed_ms = prev_time.elapsed().as_millis() as f64;
-            if elapsed_ms > 0.0 {
-                let delta = energy_delta_u32(prev_energy, energy);
-                let energy_uj = delta as f64 * self.energy_unit_uj;
-                Some(energy_uj / elapsed_ms / 1000.0)
+        let power =
+            if let (Some(prev_energy), Some(prev_time)) = (self.prev_core_energy, self.prev_time) {
+                let elapsed_ms = prev_time.elapsed().as_millis() as f64;
+                if elapsed_ms > 0.0 {
+                    let delta = energy_delta_u32(prev_energy, energy);
+                    let energy_uj = delta as f64 * self.energy_unit_uj;
+                    Some(energy_uj / elapsed_ms / 1000.0)
+                } else {
+                    None
+                }
             } else {
                 None
-            }
-        } else {
-            None
-        };
+            };
 
         self.prev_core_energy = Some(energy);
         // Don't update prev_time here — it's shared with package
@@ -242,10 +241,7 @@ mod tests {
         // This is "almost full loop": prev=0xFFFFFFFE, current=0xFFFFFFFD
         // Since current < prev, this is a wrap
         // delta = (0x100000000 - 0xFFFFFFFE) + 0xFFFFFFFD = 2 + 0xFFFFFFFD = 0xFFFFFFFF
-        assert_eq!(
-            energy_delta_u32(0xFFFF_FFFE, 0xFFFF_FFFD),
-            0xFFFF_FFFF
-        );
+        assert_eq!(energy_delta_u32(0xFFFF_FFFE, 0xFFFF_FFFD), 0xFFFF_FFFF);
     }
 
     // =========================================================================

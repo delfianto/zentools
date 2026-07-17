@@ -15,16 +15,10 @@ pub enum EppError {
     NoCpusFound,
 
     #[error("Permission denied accessing {path}: {source}")]
-    PermissionDenied {
-        path: String,
-        source: io::Error,
-    },
+    PermissionDenied { path: String, source: io::Error },
 
     #[error("Failed to access {path}: {source}")]
-    IoError {
-        path: String,
-        source: io::Error,
-    },
+    IoError { path: String, source: io::Error },
 
     #[error("Invalid CPU number in path: {0}")]
     InvalidCpuNumber(String),
@@ -176,22 +170,19 @@ impl EppManager {
         let profile_str = format!("{}\n", profile.as_str());
 
         for path in &self.epp_paths {
-            let mut file = fs::OpenOptions::new()
-                .write(true)
-                .open(path)
-                .map_err(|e| {
-                    if e.kind() == io::ErrorKind::PermissionDenied {
-                        EppError::PermissionDenied {
-                            path: path.display().to_string(),
-                            source: e,
-                        }
-                    } else {
-                        EppError::IoError {
-                            path: path.display().to_string(),
-                            source: e,
-                        }
+            let mut file = fs::OpenOptions::new().write(true).open(path).map_err(|e| {
+                if e.kind() == io::ErrorKind::PermissionDenied {
+                    EppError::PermissionDenied {
+                        path: path.display().to_string(),
+                        source: e,
                     }
-                })?;
+                } else {
+                    EppError::IoError {
+                        path: path.display().to_string(),
+                        source: e,
+                    }
+                }
+            })?;
 
             file.write_all(profile_str.as_bytes())
                 .map_err(|e| EppError::IoError {
@@ -302,7 +293,11 @@ mod tests {
         let original_len = strings.len();
         strings.sort();
         strings.dedup();
-        assert_eq!(strings.len(), original_len, "all profile strings must be unique");
+        assert_eq!(
+            strings.len(),
+            original_len,
+            "all profile strings must be unique"
+        );
     }
 
     // =========================================================================
@@ -385,7 +380,11 @@ mod tests {
     fn test_epp_profile_parse_error_contains_value() {
         let err = "bogus_value".parse::<EppProfile>().unwrap_err();
         let msg = format!("{}", err);
-        assert!(msg.contains("bogus_value"), "error should contain the invalid value: {}", msg);
+        assert!(
+            msg.contains("bogus_value"),
+            "error should contain the invalid value: {}",
+            msg
+        );
     }
 
     // =========================================================================
@@ -456,7 +455,7 @@ mod tests {
     fn test_epp_profile_clone_copy() {
         let p = EppProfile::Performance;
         let p2 = p; // Copy
-        let p3 = p.clone(); // Clone
+        let p3 = p; // Clone
         assert_eq!(p, p2);
         assert_eq!(p, p3);
     }
@@ -480,25 +479,30 @@ mod tests {
 
     #[test]
     fn test_extract_cpu_number_valid() {
-        let path = PathBuf::from("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference");
+        let path =
+            PathBuf::from("/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference");
         assert_eq!(extract_cpu_number(&path).unwrap(), 0);
 
-        let path = PathBuf::from("/sys/devices/system/cpu/cpu15/cpufreq/energy_performance_preference");
+        let path =
+            PathBuf::from("/sys/devices/system/cpu/cpu15/cpufreq/energy_performance_preference");
         assert_eq!(extract_cpu_number(&path).unwrap(), 15);
 
-        let path = PathBuf::from("/sys/devices/system/cpu/cpu127/cpufreq/energy_performance_preference");
+        let path =
+            PathBuf::from("/sys/devices/system/cpu/cpu127/cpufreq/energy_performance_preference");
         assert_eq!(extract_cpu_number(&path).unwrap(), 127);
     }
 
     #[test]
     fn test_extract_cpu_number_invalid_no_cpu_prefix() {
-        let path = PathBuf::from("/sys/devices/system/cpu/notcpu0/cpufreq/energy_performance_preference");
+        let path =
+            PathBuf::from("/sys/devices/system/cpu/notcpu0/cpufreq/energy_performance_preference");
         assert!(extract_cpu_number(&path).is_err());
     }
 
     #[test]
     fn test_extract_cpu_number_invalid_no_number() {
-        let path = PathBuf::from("/sys/devices/system/cpu/cpuXX/cpufreq/energy_performance_preference");
+        let path =
+            PathBuf::from("/sys/devices/system/cpu/cpuXX/cpufreq/energy_performance_preference");
         assert!(extract_cpu_number(&path).is_err());
     }
 

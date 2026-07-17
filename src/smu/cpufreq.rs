@@ -90,7 +90,7 @@ mod tests {
         // Environment-dependent: just verify it doesn't panic and, if Some,
         // is internally consistent.
         if let Some(reader) = CpuFreqReader::new() {
-            assert!(reader.core_to_cpu.len() > 0);
+            assert!(!reader.core_to_cpu.is_empty());
         }
     }
 
