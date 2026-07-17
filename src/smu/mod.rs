@@ -67,7 +67,9 @@ pub fn read_metrics(
             .per_core
             .iter()
             .filter_map(|c| c.frequency_mhz)
-            .fold(None, |acc: Option<f64>, f| Some(acc.map_or(f, |a| a.max(f))))
+            .fold(None, |acc: Option<f64>, f| {
+                Some(acc.map_or(f, |a| a.max(f)))
+            })
         {
             metrics.peak_core_freq_mhz = Some(max_freq);
         }
@@ -163,12 +165,18 @@ mod tests {
 
     #[test]
     fn test_codename_conversion() {
-        assert!(matches!(CpuCodename::from_u32(23), CpuCodename::GraniteRidge));
+        assert!(matches!(
+            CpuCodename::from_u32(23),
+            CpuCodename::GraniteRidge
+        ));
         assert!(matches!(CpuCodename::from_u32(12), CpuCodename::Vermeer));
         assert!(matches!(CpuCodename::from_u32(20), CpuCodename::Raphael));
         assert!(matches!(CpuCodename::from_u32(4), CpuCodename::Matisse));
         assert!(matches!(CpuCodename::from_u32(22), CpuCodename::StrixPoint));
-        assert!(matches!(CpuCodename::from_u32(999), CpuCodename::Unknown(999)));
+        assert!(matches!(
+            CpuCodename::from_u32(999),
+            CpuCodename::Unknown(999)
+        ));
     }
 
     #[test]
@@ -282,10 +290,12 @@ mod tests {
 
     #[test]
     fn test_cpu_metrics_can_set_fields() {
-        let mut m = CpuMetrics::default();
-        m.tctl_temp_c = Some(65.0);
-        m.package_power_w = Some(88.5);
-        m.source = MetricsSource::Hybrid;
+        let m = CpuMetrics {
+            tctl_temp_c: Some(65.0),
+            package_power_w: Some(88.5),
+            source: MetricsSource::Hybrid,
+            ..Default::default()
+        };
 
         assert_eq!(m.tctl_temp_c, Some(65.0));
         assert_eq!(m.package_power_w, Some(88.5));
@@ -294,8 +304,10 @@ mod tests {
 
     #[test]
     fn test_cpu_metrics_clone() {
-        let mut m = CpuMetrics::default();
-        m.tctl_temp_c = Some(70.0);
+        let mut m = CpuMetrics {
+            tctl_temp_c: Some(70.0),
+            ..Default::default()
+        };
         m.per_core.push(CoreMetrics {
             core_id: 0,
             power_w: Some(5.0),
@@ -315,7 +327,10 @@ mod tests {
     #[test]
     fn test_metrics_source_variants() {
         assert_eq!(MetricsSource::PmTable, MetricsSource::PmTable);
-        assert_eq!(MetricsSource::DirectRegisters, MetricsSource::DirectRegisters);
+        assert_eq!(
+            MetricsSource::DirectRegisters,
+            MetricsSource::DirectRegisters
+        );
         assert_eq!(MetricsSource::Hybrid, MetricsSource::Hybrid);
         assert_ne!(MetricsSource::PmTable, MetricsSource::Hybrid);
     }

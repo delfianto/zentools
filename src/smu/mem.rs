@@ -157,10 +157,7 @@ pub fn read_mem_config(smn: &SmnReader, mem_type: MemType) -> Result<MemConfig, 
         });
     }
 
-    Ok(MemConfig {
-        mem_type,
-        channels,
-    })
+    Ok(MemConfig { mem_type, channels })
 }
 
 /// Detect DIMM presence for a channel.
@@ -337,18 +334,18 @@ mod tests {
     fn test_parse_tim0_cl_ras_rcd() {
         // CL=16, RAS=36, RCDRD=16, RCDWR=16
         let tim0: u32 = 16 | (36 << 8) | (16 << 16) | (16 << 24);
-        assert_eq!(tim0 & 0x3F, 16);          // CL
-        assert_eq!((tim0 >> 8) & 0x7F, 36);   // RAS
-        assert_eq!((tim0 >> 16) & 0x3F, 16);  // RCDRD
-        assert_eq!((tim0 >> 24) & 0x3F, 16);  // RCDWR
+        assert_eq!(tim0 & 0x3F, 16); // CL
+        assert_eq!((tim0 >> 8) & 0x7F, 36); // RAS
+        assert_eq!((tim0 >> 16) & 0x3F, 16); // RCDRD
+        assert_eq!((tim0 >> 24) & 0x3F, 16); // RCDWR
     }
 
     #[test]
     fn test_parse_tim1_rc_rp() {
         // RC=52, RP=16
         let tim1: u32 = 52 | (16 << 16);
-        assert_eq!(tim1 & 0xFF, 52);          // RC
-        assert_eq!((tim1 >> 16) & 0x3F, 16);  // RP
+        assert_eq!(tim1 & 0xFF, 52); // RC
+        assert_eq!((tim1 >> 16) & 0x3F, 16); // RP
     }
 
     #[test]
@@ -522,14 +519,34 @@ mod tests {
             cmd2t: false,
             gdm: true,
             power_down: false,
-            tcl: 16, trcdrd: 16, trcdwr: 16, trp: 16, tras: 36, trc: 52,
-            trrds: 4, trrdl: 6, tfaw: 24, twtrs: 4, twtrl: 12, twr: 12,
-            tcwl: 14, trtp: 8,
-            trdrdscl: 4, twrwrscl: 4,
-            trdrdsc: 1, trdrdsd: 5, trdrddd: 8,
-            twrwrsc: 1, twrwrsd: 5, twrwrdd: 8,
-            trdwr: 12, twrrd: 3,
-            trefi: 7800, trfc: 350, trfc2: 260, trfc4: 160,
+            tcl: 16,
+            trcdrd: 16,
+            trcdwr: 16,
+            trp: 16,
+            tras: 36,
+            trc: 52,
+            trrds: 4,
+            trrdl: 6,
+            tfaw: 24,
+            twtrs: 4,
+            twtrl: 12,
+            twr: 12,
+            tcwl: 14,
+            trtp: 8,
+            trdrdscl: 4,
+            twrwrscl: 4,
+            trdrdsc: 1,
+            trdrdsd: 5,
+            trdrddd: 8,
+            twrwrsc: 1,
+            twrwrsd: 5,
+            twrwrdd: 8,
+            trdwr: 12,
+            twrrd: 3,
+            trefi: 7800,
+            trfc: 350,
+            trfc2: 260,
+            trfc4: 160,
         };
 
         assert_eq!(t.tcl, 16);
@@ -554,14 +571,34 @@ mod tests {
             cmd2t: true,
             gdm: false,
             power_down: true,
-            tcl: 30, trcdrd: 36, trcdwr: 36, trp: 36, tras: 72, trc: 108,
-            trrds: 8, trrdl: 12, tfaw: 32, twtrs: 4, twtrl: 16, twr: 48,
-            tcwl: 28, trtp: 12,
-            trdrdscl: 4, twrwrscl: 4,
-            trdrdsc: 1, trdrdsd: 5, trdrddd: 8,
-            twrwrsc: 1, twrwrsd: 5, twrwrdd: 8,
-            trdwr: 16, twrrd: 4,
-            trefi: 3900, trfc: 880, trfc2: 660, trfc4: 440,
+            tcl: 30,
+            trcdrd: 36,
+            trcdwr: 36,
+            trp: 36,
+            tras: 72,
+            trc: 108,
+            trrds: 8,
+            trrdl: 12,
+            tfaw: 32,
+            twtrs: 4,
+            twtrl: 16,
+            twr: 48,
+            tcwl: 28,
+            trtp: 12,
+            trdrdscl: 4,
+            twrwrscl: 4,
+            trdrdsc: 1,
+            trdrdsd: 5,
+            trdrddd: 8,
+            twrwrsc: 1,
+            twrwrsd: 5,
+            twrwrdd: 8,
+            trdwr: 16,
+            twrrd: 4,
+            trefi: 3900,
+            trfc: 880,
+            trfc2: 660,
+            trfc4: 440,
         };
 
         assert_eq!(t.tcl, 30);
@@ -604,7 +641,10 @@ mod tests {
 
     #[test]
     fn test_roundtrip_tim0() {
-        let cl = 16u32; let ras = 36u32; let rcdrd = 16u32; let rcdwr = 16u32;
+        let cl = 16u32;
+        let ras = 36u32;
+        let rcdrd = 16u32;
+        let rcdwr = 16u32;
         let encoded = cl | (ras << 8) | (rcdrd << 16) | (rcdwr << 24);
 
         assert_eq!(encoded & 0x3F, cl);
@@ -615,7 +655,9 @@ mod tests {
 
     #[test]
     fn test_roundtrip_rfc() {
-        let rfc = 350u32; let rfc2 = 260u32; let rfc4 = 160u32;
+        let rfc = 350u32;
+        let rfc2 = 260u32;
+        let rfc4 = 160u32;
         let encoded = rfc | (rfc2 << 11) | (rfc4 << 22);
 
         assert_eq!(encoded & 0x7FF, rfc);
@@ -625,7 +667,9 @@ mod tests {
 
     #[test]
     fn test_roundtrip_cfg_ddr4() {
-        let ratio = 54u32; let cmd2t = true; let gdm = true;
+        let ratio = 54u32;
+        let cmd2t = true;
+        let gdm = true;
         let encoded = ratio | ((cmd2t as u32) << 10) | ((gdm as u32) << 11);
 
         assert_eq!(encoded & 0x7F, 54);
@@ -636,7 +680,9 @@ mod tests {
     #[test]
     fn test_roundtrip_cfg_ddr5() {
         // DDR5: bits [15:0] = MCLK, bit 17 = Cmd2T, bit 18 = GDM
-        let mclk = 3000u32; let cmd2t = true; let gdm = false;
+        let mclk = 3000u32;
+        let cmd2t = true;
+        let gdm = false;
         let encoded = mclk | ((cmd2t as u32) << 17) | ((gdm as u32) << 18);
 
         assert_eq!(encoded & 0xFFFF, 3000);
@@ -662,8 +708,8 @@ mod tests {
 
     #[test]
     fn test_channel_enabled_bit() {
-        let enabled: u32 = 0;            // bit 19 = 0 → enabled
-        let disabled: u32 = 1 << 19;     // bit 19 = 1 → disabled
+        let enabled: u32 = 0; // bit 19 = 0 → enabled
+        let disabled: u32 = 1 << 19; // bit 19 = 1 → disabled
         assert_eq!((enabled >> 19) & 1, 0);
         assert_eq!((disabled >> 19) & 1, 1);
     }
@@ -675,12 +721,12 @@ mod tests {
     #[test]
     fn test_timing_max_values() {
         // Verify mask widths handle maximum values
-        assert_eq!(0x3F, 63);     // 6-bit max (CL, RCDRD, etc.)
-        assert_eq!(0x7F, 127);    // 7-bit max (RAS, ratio)
-        assert_eq!(0xFF, 255);    // 8-bit max (RC, FAW, WR)
-        assert_eq!(0x1F, 31);     // 5-bit max (RRDS, RRDL, RTP, WTRS)
-        assert_eq!(0x7FF, 2047);  // 11-bit max (RFC, RFC2)
-        assert_eq!(0x3FF, 1023);  // 10-bit max (RFC4)
+        assert_eq!(0x3F, 63); // 6-bit max (CL, RCDRD, etc.)
+        assert_eq!(0x7F, 127); // 7-bit max (RAS, ratio)
+        assert_eq!(0xFF, 255); // 8-bit max (RC, FAW, WR)
+        assert_eq!(0x1F, 31); // 5-bit max (RRDS, RRDL, RTP, WTRS)
+        assert_eq!(0x7FF, 2047); // 11-bit max (RFC, RFC2)
+        assert_eq!(0x3FF, 1023); // 10-bit max (RFC4)
         assert_eq!(0xFFFF, 65535); // 16-bit max (REFI)
     }
 }

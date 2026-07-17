@@ -31,30 +31,130 @@ const MAX_CORES: usize = 32;
 
 const ZEN2_FIELDS: &[PmTableField] = &[
     // PBO Limits
-    PmTableField { name: "PPT Limit", offset: 0x000, data_type: FieldType::F32, unit: "W" },
-    PmTableField { name: "PPT Current", offset: 0x004, data_type: FieldType::F32, unit: "W" },
-    PmTableField { name: "TDC Limit", offset: 0x008, data_type: FieldType::F32, unit: "A" },
-    PmTableField { name: "TDC Current", offset: 0x00C, data_type: FieldType::F32, unit: "A" },
-    PmTableField { name: "TjMax", offset: 0x010, data_type: FieldType::F32, unit: "C" },
-    PmTableField { name: "Tctl", offset: 0x014, data_type: FieldType::F32, unit: "C" },
-    PmTableField { name: "EDC Limit", offset: 0x020, data_type: FieldType::F32, unit: "A" },
-    PmTableField { name: "EDC Current", offset: 0x024, data_type: FieldType::F32, unit: "A" },
-    PmTableField { name: "SVI2 Voltage", offset: 0x02C, data_type: FieldType::F32, unit: "V" },
+    PmTableField {
+        name: "PPT Limit",
+        offset: 0x000,
+        data_type: FieldType::F32,
+        unit: "W",
+    },
+    PmTableField {
+        name: "PPT Current",
+        offset: 0x004,
+        data_type: FieldType::F32,
+        unit: "W",
+    },
+    PmTableField {
+        name: "TDC Limit",
+        offset: 0x008,
+        data_type: FieldType::F32,
+        unit: "A",
+    },
+    PmTableField {
+        name: "TDC Current",
+        offset: 0x00C,
+        data_type: FieldType::F32,
+        unit: "A",
+    },
+    PmTableField {
+        name: "TjMax",
+        offset: 0x010,
+        data_type: FieldType::F32,
+        unit: "C",
+    },
+    PmTableField {
+        name: "Tctl",
+        offset: 0x014,
+        data_type: FieldType::F32,
+        unit: "C",
+    },
+    PmTableField {
+        name: "EDC Limit",
+        offset: 0x020,
+        data_type: FieldType::F32,
+        unit: "A",
+    },
+    PmTableField {
+        name: "EDC Current",
+        offset: 0x024,
+        data_type: FieldType::F32,
+        unit: "A",
+    },
+    PmTableField {
+        name: "SVI2 Voltage",
+        offset: 0x02C,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
     // Power
-    PmTableField { name: "Core Power", offset: 0x060, data_type: FieldType::F32, unit: "W" },
-    PmTableField { name: "SoC Power", offset: 0x064, data_type: FieldType::F32, unit: "W" },
+    PmTableField {
+        name: "Core Power",
+        offset: 0x060,
+        data_type: FieldType::F32,
+        unit: "W",
+    },
+    PmTableField {
+        name: "SoC Power",
+        offset: 0x064,
+        data_type: FieldType::F32,
+        unit: "W",
+    },
     // Voltage
-    PmTableField { name: "Peak Voltage", offset: 0x0A0, data_type: FieldType::F32, unit: "V" },
-    PmTableField { name: "SoC Voltage", offset: 0x0B0, data_type: FieldType::F32, unit: "V" },
-    PmTableField { name: "SoC Current", offset: 0x0B8, data_type: FieldType::F32, unit: "A" },
+    PmTableField {
+        name: "Peak Voltage",
+        offset: 0x0A0,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
+    PmTableField {
+        name: "SoC Voltage",
+        offset: 0x0B0,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
+    PmTableField {
+        name: "SoC Current",
+        offset: 0x0B8,
+        data_type: FieldType::F32,
+        unit: "A",
+    },
     // Clocks
-    PmTableField { name: "FCLK", offset: 0x0C0, data_type: FieldType::F32, unit: "MHz" },
-    PmTableField { name: "FCLK Avg", offset: 0x0C4, data_type: FieldType::F32, unit: "MHz" },
-    PmTableField { name: "UCLK", offset: 0x128, data_type: FieldType::F32, unit: "MHz" },
-    PmTableField { name: "MCLK", offset: 0x138, data_type: FieldType::F32, unit: "MHz" },
+    PmTableField {
+        name: "FCLK",
+        offset: 0x0C0,
+        data_type: FieldType::F32,
+        unit: "MHz",
+    },
+    PmTableField {
+        name: "FCLK Avg",
+        offset: 0x0C4,
+        data_type: FieldType::F32,
+        unit: "MHz",
+    },
+    PmTableField {
+        name: "UCLK",
+        offset: 0x128,
+        data_type: FieldType::F32,
+        unit: "MHz",
+    },
+    PmTableField {
+        name: "MCLK",
+        offset: 0x138,
+        data_type: FieldType::F32,
+        unit: "MHz",
+    },
     // Memory voltage
-    PmTableField { name: "cLDO_VDDP", offset: 0x1F4, data_type: FieldType::F32, unit: "V" },
-    PmTableField { name: "cLDO_VDDG", offset: 0x1F8, data_type: FieldType::F32, unit: "V" },
+    PmTableField {
+        name: "cLDO_VDDP",
+        offset: 0x1F4,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
+    PmTableField {
+        name: "cLDO_VDDG",
+        offset: 0x1F8,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
 ];
 
 /// Per-core field offsets for Zen 2/3 (multiply core index by 4 and add to base)
@@ -90,14 +190,39 @@ const ZEN2_CORE: Zen2CoreOffsets = Zen2CoreOffsets {
 
 const ZEN4_FIELDS: &[PmTableField] = &[
     // Voltage
-    PmTableField { name: "Vcore", offset: 0x048, data_type: FieldType::F32, unit: "V" },
+    PmTableField {
+        name: "Vcore",
+        offset: 0x048,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
     // Power
-    PmTableField { name: "SoC Power", offset: 0x0D8, data_type: FieldType::F32, unit: "W" },
-    PmTableField { name: "Package Power", offset: 0x0DC, data_type: FieldType::F32, unit: "W" },
+    PmTableField {
+        name: "SoC Power",
+        offset: 0x0D8,
+        data_type: FieldType::F32,
+        unit: "W",
+    },
+    PmTableField {
+        name: "Package Power",
+        offset: 0x0DC,
+        data_type: FieldType::F32,
+        unit: "W",
+    },
     // Voltage (SoC)
-    PmTableField { name: "VSOC", offset: 0x148, data_type: FieldType::F32, unit: "V" },
+    PmTableField {
+        name: "VSOC",
+        offset: 0x148,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
     // Temperature
-    PmTableField { name: "Tctl", offset: 0x454, data_type: FieldType::F32, unit: "C" },
+    PmTableField {
+        name: "Tctl",
+        offset: 0x454,
+        data_type: FieldType::F32,
+        unit: "C",
+    },
 ];
 
 /// Per-core field offsets for Zen 4 (stride: 4 bytes per core, up to 16 cores)
@@ -126,17 +251,57 @@ const ZEN4_CORE: Zen4CoreOffsets = Zen4CoreOffsets {
 
 const ZEN5_FIELDS: &[PmTableField] = &[
     // Voltage
-    PmTableField { name: "VDD_MISC", offset: 0x0E8, data_type: FieldType::F32, unit: "V" },
+    PmTableField {
+        name: "VDD_MISC",
+        offset: 0x0E8,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
     // Clocks
-    PmTableField { name: "FCLK", offset: 0x11C, data_type: FieldType::F32, unit: "MHz" },
-    PmTableField { name: "UCLK", offset: 0x12C, data_type: FieldType::F32, unit: "MHz" },
-    PmTableField { name: "MCLK", offset: 0x13C, data_type: FieldType::F32, unit: "MHz" },
+    PmTableField {
+        name: "FCLK",
+        offset: 0x11C,
+        data_type: FieldType::F32,
+        unit: "MHz",
+    },
+    PmTableField {
+        name: "UCLK",
+        offset: 0x12C,
+        data_type: FieldType::F32,
+        unit: "MHz",
+    },
+    PmTableField {
+        name: "MCLK",
+        offset: 0x13C,
+        data_type: FieldType::F32,
+        unit: "MHz",
+    },
     // SoC Voltage
-    PmTableField { name: "VDDCR_SOC", offset: 0x14C, data_type: FieldType::F32, unit: "V" },
+    PmTableField {
+        name: "VDDCR_SOC",
+        offset: 0x14C,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
     // Memory Voltages
-    PmTableField { name: "CLDO_VDDG_IOD", offset: 0x40C, data_type: FieldType::F32, unit: "V" },
-    PmTableField { name: "CLDO_VDDG_CCD", offset: 0x414, data_type: FieldType::F32, unit: "V" },
-    PmTableField { name: "CLDO_VDDP", offset: 0x434, data_type: FieldType::F32, unit: "V" },
+    PmTableField {
+        name: "CLDO_VDDG_IOD",
+        offset: 0x40C,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
+    PmTableField {
+        name: "CLDO_VDDG_CCD",
+        offset: 0x414,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
+    PmTableField {
+        name: "CLDO_VDDP",
+        offset: 0x434,
+        data_type: FieldType::F32,
+        unit: "V",
+    },
 ];
 
 /// Per-core field offsets for Zen 5, 16-core table family (0x620205, 0x621201, 0x621202)
@@ -646,7 +811,15 @@ mod tests {
 
     #[test]
     fn test_field_names_non_empty() {
-        for version in [0x240903u32, 0x240802, 0x480804, 0x480805, 0x620105, 0x620205, 0x621202] {
+        for version in [
+            0x240903u32,
+            0x240802,
+            0x480804,
+            0x480805,
+            0x620105,
+            0x620205,
+            0x621202,
+        ] {
             if let Some(fields) = get_field_map(version) {
                 for field in fields {
                     assert!(!field.name.is_empty());
@@ -661,11 +834,15 @@ mod tests {
 
     #[test]
     fn test_parse_pm_table_zen2_basic() {
-        let pt = make_pm_table(0x240903, 1024, &[
-            (0x000, 142.0),  // PPT Limit
-            (0x014, 65.5),   // Tctl
-            (0x0C0, 1800.0), // FCLK
-        ]);
+        let pt = make_pm_table(
+            0x240903,
+            1024,
+            &[
+                (0x000, 142.0),  // PPT Limit
+                (0x014, 65.5),   // Tctl
+                (0x0C0, 1800.0), // FCLK
+            ],
+        );
 
         let metrics = parse_pm_table(&pt);
         assert_eq!(metrics.source, MetricsSource::PmTable);
@@ -676,26 +853,30 @@ mod tests {
 
     #[test]
     fn test_parse_pm_table_zen2_all_fields() {
-        let pt = make_pm_table(0x240903, 0x200, &[
-            (0x000, 142.0),   // PPT Limit
-            (0x004, 95.3),    // PPT Current
-            (0x008, 120.0),   // TDC Limit
-            (0x00C, 45.2),    // TDC Current
-            (0x010, 95.0),    // TjMax
-            (0x014, 72.1),    // Tctl
-            (0x020, 200.0),   // EDC Limit
-            (0x024, 89.5),    // EDC Current
-            (0x02C, 1.325),   // SVI2 Voltage
-            (0x060, 88.7),    // Core Power
-            (0x064, 12.3),    // SoC Power
-            (0x0A0, 1.45),    // Peak Voltage
-            (0x0B0, 1.1),     // SoC Voltage
-            (0x0C0, 1800.0),  // FCLK
-            (0x128, 3200.0),  // UCLK
-            (0x138, 3200.0),  // MCLK
-            (0x1F4, 0.95),    // cLDO_VDDP
-            (0x1F8, 1.025),   // cLDO_VDDG
-        ]);
+        let pt = make_pm_table(
+            0x240903,
+            0x200,
+            &[
+                (0x000, 142.0),  // PPT Limit
+                (0x004, 95.3),   // PPT Current
+                (0x008, 120.0),  // TDC Limit
+                (0x00C, 45.2),   // TDC Current
+                (0x010, 95.0),   // TjMax
+                (0x014, 72.1),   // Tctl
+                (0x020, 200.0),  // EDC Limit
+                (0x024, 89.5),   // EDC Current
+                (0x02C, 1.325),  // SVI2 Voltage
+                (0x060, 88.7),   // Core Power
+                (0x064, 12.3),   // SoC Power
+                (0x0A0, 1.45),   // Peak Voltage
+                (0x0B0, 1.1),    // SoC Voltage
+                (0x0C0, 1800.0), // FCLK
+                (0x128, 3200.0), // UCLK
+                (0x138, 3200.0), // MCLK
+                (0x1F4, 0.95),   // cLDO_VDDP
+                (0x1F8, 1.025),  // cLDO_VDDG
+            ],
+        );
 
         let metrics = parse_pm_table(&pt);
         assert!((metrics.ppt_limit_w.unwrap() - 142.0).abs() < 0.1);
@@ -722,15 +903,19 @@ mod tests {
 
     #[test]
     fn test_parse_pm_table_zen5_confirmed_fields() {
-        let pt = make_pm_table(0x620205, 0x994, &[
-            (0x0E8, 1.1),     // VDD_MISC -> core_voltage_v
-            (0x11C, 2000.0),  // FCLK
-            (0x12C, 3200.0),  // UCLK
-            (0x13C, 3200.0),  // MCLK
-            (0x14C, 1.05),    // VDDCR_SOC -> soc_voltage_v
-            (0x40C, 0.95),    // CLDO_VDDG_IOD -> vddg_v
-            (0x434, 0.88),    // CLDO_VDDP -> vddp_v
-        ]);
+        let pt = make_pm_table(
+            0x620205,
+            0x994,
+            &[
+                (0x0E8, 1.1),    // VDD_MISC -> core_voltage_v
+                (0x11C, 2000.0), // FCLK
+                (0x12C, 3200.0), // UCLK
+                (0x13C, 3200.0), // MCLK
+                (0x14C, 1.05),   // VDDCR_SOC -> soc_voltage_v
+                (0x40C, 0.95),   // CLDO_VDDG_IOD -> vddg_v
+                (0x434, 0.88),   // CLDO_VDDP -> vddp_v
+            ],
+        );
 
         let metrics = parse_pm_table(&pt);
         assert_eq!(metrics.source, MetricsSource::PmTable);
@@ -746,9 +931,13 @@ mod tests {
     #[test]
     fn test_parse_pm_table_zen5_newer_version() {
         // Verify newer Zen 5 versions use the same field map
-        let pt = make_pm_table(0x621202, 0x994, &[
-            (0x11C, 1800.0), // FCLK
-        ]);
+        let pt = make_pm_table(
+            0x621202,
+            0x994,
+            &[
+                (0x11C, 1800.0), // FCLK
+            ],
+        );
         let metrics = parse_pm_table(&pt);
         assert!((metrics.fclk_mhz.unwrap() - 1800.0).abs() < 0.1);
     }
@@ -792,9 +981,7 @@ mod tests {
     #[test]
     fn test_parse_pm_table_too_small_for_some_fields() {
         // Only 32 bytes — covers PPT but not FCLK at 0xC0
-        let pt = make_pm_table(0x240903, 32, &[
-            (0x000, 142.0),
-        ]);
+        let pt = make_pm_table(0x240903, 32, &[(0x000, 142.0)]);
         let metrics = parse_pm_table(&pt);
         assert!((metrics.ppt_limit_w.unwrap() - 142.0).abs() < 0.1);
         assert!(metrics.fclk_mhz.is_none()); // offset 0xC0 out of bounds
@@ -826,9 +1013,13 @@ mod tests {
 
     #[test]
     fn test_parse_pm_table_near_zero_skipped() {
-        let pt = make_pm_table(0x240903, 32, &[
-            (0x000, 0.0001), // below 0.001 threshold
-        ]);
+        let pt = make_pm_table(
+            0x240903,
+            32,
+            &[
+                (0x000, 0.0001), // below 0.001 threshold
+            ],
+        );
         let metrics = parse_pm_table(&pt);
         assert!(metrics.ppt_limit_w.is_none(), "near-zero should be skipped");
     }
@@ -908,10 +1099,7 @@ mod tests {
 
     #[test]
     fn test_dump_named_fields_zen2() {
-        let pt = make_pm_table(0x240903, 1024, &[
-            (0x000, 142.0),
-            (0x014, 65.5),
-        ]);
+        let pt = make_pm_table(0x240903, 1024, &[(0x000, 142.0), (0x014, 65.5)]);
 
         let fields = dump_named_fields(&pt);
         assert!(fields.len() >= 2);
@@ -967,13 +1155,17 @@ mod tests {
 
     #[test]
     fn test_parse_pm_table_zen4_basic() {
-        let pt = make_pm_table(0x480804, 0x600, &[
-            (0x048, 1.325),    // Vcore
-            (0x0D8, 12.5),     // SoC Power
-            (0x0DC, 88.0),     // Package Power
-            (0x148, 1.1),      // VSOC
-            (0x454, 72.3),     // Tctl
-        ]);
+        let pt = make_pm_table(
+            0x480804,
+            0x600,
+            &[
+                (0x048, 1.325), // Vcore
+                (0x0D8, 12.5),  // SoC Power
+                (0x0DC, 88.0),  // Package Power
+                (0x148, 1.1),   // VSOC
+                (0x454, 72.3),  // Tctl
+            ],
+        );
 
         let metrics = parse_pm_table(&pt);
         assert_eq!(metrics.source, MetricsSource::PmTable);
@@ -997,7 +1189,10 @@ mod tests {
             data[0x514 + off..0x518 + off].copy_from_slice(&temp.to_le_bytes());
         }
 
-        let pt = PmTableData { version: 0x480804, data };
+        let pt = PmTableData {
+            version: 0x480804,
+            data,
+        };
         let metrics = parse_pm_table(&pt);
 
         assert_eq!(metrics.per_core.len(), 4);
@@ -1014,7 +1209,10 @@ mod tests {
             assert!(
                 window[0].offset < window[1].offset,
                 "Zen 4 fields should be ascending: {} (0x{:x}) >= {} (0x{:x})",
-                window[0].name, window[0].offset, window[1].name, window[1].offset
+                window[0].name,
+                window[0].offset,
+                window[1].name,
+                window[1].offset
             );
         }
     }
@@ -1041,7 +1239,10 @@ mod tests {
             data[0x5F4 + off..0x5F8 + off].copy_from_slice(&c0.to_le_bytes());
         }
 
-        let pt = PmTableData { version: 0x621202, data };
+        let pt = PmTableData {
+            version: 0x621202,
+            data,
+        };
         let metrics = parse_pm_table(&pt);
 
         assert_eq!(metrics.per_core.len(), 4);
@@ -1049,7 +1250,10 @@ mod tests {
         assert!((metrics.per_core[0].power_w.unwrap() - 5.0).abs() < 0.1);
         assert!((metrics.per_core[0].voltage_v.unwrap() - 1.0).abs() < 0.01);
         assert!((metrics.per_core[0].temp_c.unwrap() - 55.0).abs() < 0.1);
-        assert!(metrics.per_core[0].frequency_mhz.is_none(), "no known frequency offset");
+        assert!(
+            metrics.per_core[0].frequency_mhz.is_none(),
+            "no known frequency offset"
+        );
         assert!((metrics.per_core[0].c0_pct.unwrap() - 50.0).abs() < 0.1);
 
         assert_eq!(metrics.per_core[3].core_id, 3);
@@ -1067,7 +1271,10 @@ mod tests {
         data[0x4B8..0x4BC].copy_from_slice(&p1);
         // core 2 = 0.0 -> stop
 
-        let pt = PmTableData { version: 0x620205, data };
+        let pt = PmTableData {
+            version: 0x620205,
+            data,
+        };
         let metrics = parse_pm_table(&pt);
         assert_eq!(metrics.per_core.len(), 2);
     }

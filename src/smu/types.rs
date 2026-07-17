@@ -258,10 +258,7 @@ impl CpuCodename {
     }
 
     pub fn is_zen5(&self) -> bool {
-        matches!(
-            self,
-            CpuCodename::StrixPoint | CpuCodename::GraniteRidge
-        )
+        matches!(self, CpuCodename::StrixPoint | CpuCodename::GraniteRidge)
     }
 
     /// Check if this CPU uses DDR5 (Zen 4 and newer)
@@ -534,9 +531,18 @@ mod tests {
     #[test]
     fn test_codename_from_u32_unknown() {
         assert!(matches!(CpuCodename::from_u32(0), CpuCodename::Unknown(0)));
-        assert!(matches!(CpuCodename::from_u32(26), CpuCodename::Unknown(26)));
-        assert!(matches!(CpuCodename::from_u32(100), CpuCodename::Unknown(100)));
-        assert!(matches!(CpuCodename::from_u32(u32::MAX), CpuCodename::Unknown(u32::MAX)));
+        assert!(matches!(
+            CpuCodename::from_u32(26),
+            CpuCodename::Unknown(26)
+        ));
+        assert!(matches!(
+            CpuCodename::from_u32(100),
+            CpuCodename::Unknown(100)
+        ));
+        assert!(matches!(
+            CpuCodename::from_u32(u32::MAX),
+            CpuCodename::Unknown(u32::MAX)
+        ));
     }
 
     #[test]
@@ -711,7 +717,7 @@ mod tests {
     fn test_codename_clone_copy_eq() {
         let cn = CpuCodename::Raphael;
         let cn2 = cn; // Copy
-        let cn3 = cn.clone();
+        let cn3 = cn;
         assert_eq!(cn, cn2);
         assert_eq!(cn, cn3);
         assert_ne!(cn, CpuCodename::Vermeer);
@@ -969,7 +975,11 @@ mod tests {
     #[test]
     fn test_metrics_source_display() {
         assert!(MetricsSource::PmTable.to_string().contains("PM Table"));
-        assert!(MetricsSource::DirectRegisters.to_string().contains("Direct"));
+        assert!(
+            MetricsSource::DirectRegisters
+                .to_string()
+                .contains("Direct")
+        );
         assert!(MetricsSource::Hybrid.to_string().contains("Hybrid"));
     }
 
@@ -1039,7 +1049,9 @@ mod tests {
 
     #[test]
     fn test_smu_error_display_driver_not_found() {
-        let err = SmuError::DriverNotFound { path: "/test".to_string() };
+        let err = SmuError::DriverNotFound {
+            path: "/test".to_string(),
+        };
         let msg = format!("{}", err);
         assert!(msg.contains("/test"));
         assert!(msg.contains("not found"));
@@ -1047,7 +1059,9 @@ mod tests {
 
     #[test]
     fn test_smu_error_display_permission_denied() {
-        let err = SmuError::PermissionDenied { path: "/test".to_string() };
+        let err = SmuError::PermissionDenied {
+            path: "/test".to_string(),
+        };
         let msg = format!("{}", err);
         assert!(msg.contains("Permission denied"));
         assert!(msg.contains("sudo"));
@@ -1062,7 +1076,10 @@ mod tests {
 
     #[test]
     fn test_smu_error_display_pm_table_too_small() {
-        let err = SmuError::PmTableTooSmall { expected: 256, actual: 10 };
+        let err = SmuError::PmTableTooSmall {
+            expected: 256,
+            actual: 10,
+        };
         let msg = format!("{}", err);
         assert!(msg.contains("256"));
         assert!(msg.contains("10"));
@@ -1070,7 +1087,11 @@ mod tests {
 
     #[test]
     fn test_smu_error_display_msr() {
-        let err = SmuError::MsrError { cpu: 5, msr: 0xC0010299, reason: "denied".to_string() };
+        let err = SmuError::MsrError {
+            cpu: 5,
+            msr: 0xC0010299,
+            reason: "denied".to_string(),
+        };
         let msg = format!("{}", err);
         assert!(msg.contains("CPU 5"));
         assert!(msg.contains("C0010299"));
@@ -1079,7 +1100,10 @@ mod tests {
 
     #[test]
     fn test_smu_error_display_smn() {
-        let err = SmuError::SmnError { address: 0x59800, reason: "fail".to_string() };
+        let err = SmuError::SmnError {
+            address: 0x59800,
+            reason: "fail".to_string(),
+        };
         let msg = format!("{}", err);
         assert!(msg.contains("59800"));
         assert!(msg.contains("fail"));

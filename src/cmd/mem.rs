@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
-use comfy_table::{presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table};
+use comfy_table::{Cell, CellAlignment, ContentArrangement, Table, presets::UTF8_FULL};
 use zentools::smu::{driver, mem, smn};
 
 pub fn handle(raw: bool) -> Result<()> {
@@ -124,28 +124,44 @@ pub fn handle(raw: bool) -> Result<()> {
         }
     }
 
-    section(&mut tim, "PRIMARY", &[
-        ("tCL", t.tcl, "tRAS", t.tras),
-        ("tRCDRD", t.trcdrd, "tRC", t.trc),
-        ("tRCDWR", t.trcdwr, "tRP", t.trp),
-    ]);
-    section(&mut tim, "SECONDARY", &[
-        ("tRRDS", t.trrds, "tRRDL", t.trrdl),
-        ("tFAW", t.tfaw, "tWTRS", t.twtrs),
-        ("tWTRL", t.twtrl, "tWR", t.twr),
-        ("tCWL", t.tcwl, "tRTP", t.trtp),
-    ]);
-    section(&mut tim, "TERTIARY", &[
-        ("tRDRDSCL", t.trdrdscl, "tWRWRSCL", t.twrwrscl),
-        ("tRDRDSC", t.trdrdsc, "tWRWRSC", t.twrwrsc),
-        ("tRDRDSD", t.trdrdsd, "tWRWRSD", t.twrwrsd),
-        ("tRDRDDD", t.trdrddd, "tWRWRDD", t.twrwrdd),
-        ("tRDWR", t.trdwr, "tWRRD", t.twrrd),
-    ]);
-    section(&mut tim, "REFRESH", &[
-        ("tRFC", t.trfc, "tRFC2", t.trfc2),
-        ("tRFC4", t.trfc4, "tREFI", t.trefi),
-    ]);
+    section(
+        &mut tim,
+        "PRIMARY",
+        &[
+            ("tCL", t.tcl, "tRAS", t.tras),
+            ("tRCDRD", t.trcdrd, "tRC", t.trc),
+            ("tRCDWR", t.trcdwr, "tRP", t.trp),
+        ],
+    );
+    section(
+        &mut tim,
+        "SECONDARY",
+        &[
+            ("tRRDS", t.trrds, "tRRDL", t.trrdl),
+            ("tFAW", t.tfaw, "tWTRS", t.twtrs),
+            ("tWTRL", t.twtrl, "tWR", t.twr),
+            ("tCWL", t.tcwl, "tRTP", t.trtp),
+        ],
+    );
+    section(
+        &mut tim,
+        "TERTIARY",
+        &[
+            ("tRDRDSCL", t.trdrdscl, "tWRWRSCL", t.twrwrscl),
+            ("tRDRDSC", t.trdrdsc, "tWRWRSC", t.twrwrsc),
+            ("tRDRDSD", t.trdrdsd, "tWRWRSD", t.twrwrsd),
+            ("tRDRDDD", t.trdrddd, "tWRWRDD", t.twrwrdd),
+            ("tRDWR", t.trdwr, "tWRRD", t.twrrd),
+        ],
+    );
+    section(
+        &mut tim,
+        "REFRESH",
+        &[
+            ("tRFC", t.trfc, "tRFC2", t.trfc2),
+            ("tRFC4", t.trfc4, "tREFI", t.trefi),
+        ],
+    );
 
     println!("{}", tim);
 

@@ -1,7 +1,7 @@
 //! EPP command handlers and display
 
 use anyhow::Result;
-use comfy_table::{presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table};
+use comfy_table::{Cell, CellAlignment, ContentArrangement, Table, presets::UTF8_FULL};
 use zentools::epp::{EppManager, EppProfile};
 
 use crate::EppCommands;
@@ -25,11 +25,10 @@ pub fn show() -> Result<()> {
     table
         .load_preset(UTF8_FULL)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec![Cell::new(format!(
-            "AMD EPP Status ({} CPUs)",
-            manager.cpu_count()
-        ))
-        .set_alignment(CellAlignment::Center)]);
+        .set_header(vec![
+            Cell::new(format!("AMD EPP Status ({} CPUs)", manager.cpu_count()))
+                .set_alignment(CellAlignment::Center),
+        ]);
 
     let mut by_profile: std::collections::HashMap<&str, Vec<u32>> =
         std::collections::HashMap::new();

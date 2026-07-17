@@ -1,10 +1,10 @@
 //! SMU command handlers and display
 
 use anyhow::Result;
-use comfy_table::{presets::UTF8_FULL, Cell, CellAlignment, ContentArrangement, Table};
-use std::sync::atomic::{AtomicBool, Ordering};
+use comfy_table::{Cell, CellAlignment, ContentArrangement, Table, presets::UTF8_FULL};
 use std::sync::Arc;
-use zentools::smu::{cpufreq, driver, msr, pmtable, smn, SMU_DRV_PATH};
+use std::sync::atomic::{AtomicBool, Ordering};
+use zentools::smu::{SMU_DRV_PATH, cpufreq, driver, msr, pmtable, smn};
 
 use crate::SmuCommands;
 

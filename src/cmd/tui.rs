@@ -8,15 +8,15 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
+use ratatui::Frame;
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Cell, Paragraph, Row, Sparkline, Table};
-use ratatui::Frame;
 
 use zentools::smu::driver::{self, CpuTopology};
-use zentools::smu::{self, cpufreq, msr, smn, CoreMetrics, CpuMetrics, SmuInfo};
+use zentools::smu::{self, CoreMetrics, CpuMetrics, SmuInfo, cpufreq, msr, smn};
 
 const HISTORY_LEN: usize = 120;
 
@@ -117,13 +117,18 @@ impl App {
             .per_core
             .iter()
             .filter_map(|c| c.temp_c)
-            .fold(None, |acc: Option<f64>, t| Some(acc.map_or(t, |a| a.max(t))));
+            .fold(None, |acc: Option<f64>, t| {
+                Some(acc.map_or(t, |a| a.max(t)))
+            });
 
         push_history(
             &mut self.power_history,
             metrics.package_power_w.or(metrics.core_power_w),
         );
-        push_history(&mut self.temp_history, metrics.tctl_temp_c.or(max_core_temp));
+        push_history(
+            &mut self.temp_history,
+            metrics.tctl_temp_c.or(max_core_temp),
+        );
 
         self.metrics = metrics;
         self.ccd_temps = ccd_temps;
@@ -299,7 +304,13 @@ fn draw_side_panel(frame: &mut Frame, area: Rect, app: &App) {
     draw_sparkline(frame, rows[2], "Temp", &app.temp_history, "C");
 }
 
-fn draw_sparkline(frame: &mut Frame, area: Rect, title: &str, history: &VecDeque<Option<u64>>, unit: &str) {
+fn draw_sparkline(
+    frame: &mut Frame,
+    area: Rect,
+    title: &str,
+    history: &VecDeque<Option<u64>>,
+    unit: &str,
+) {
     let data: Vec<Option<u64>> = history.iter().copied().collect();
     let latest = data.iter().rev().find_map(|v| *v);
     let title_text = match latest {
@@ -336,7 +347,8 @@ fn system_lines(app: &App) -> Vec<Line<'static>> {
     }
     for (i, temp) in app.ccd_temps.iter().enumerate() {
         if let Some(t) = temp {
-            lines.push(Line::from(format!("CCD{} Temp: {:.1} C", i, t)).style(temp_style(Some(*t))));
+            lines
+                .push(Line::from(format!("CCD{} Temp: {:.1} C", i, t)).style(temp_style(Some(*t))));
         }
     }
     if let Some(f) = m.peak_core_freq_mhz {
@@ -368,8 +380,12 @@ fn system_lines(app: &App) -> Vec<Line<'static>> {
     if m.vddp_v.is_some() || m.vddg_v.is_some() {
         lines.push(Line::from(format!(
             "VDDP/VDDG: {} / {} V",
-            m.vddp_v.map(|v| format!("{:.4}", v)).unwrap_or_else(|| "-".into()),
-            m.vddg_v.map(|v| format!("{:.4}", v)).unwrap_or_else(|| "-".into()),
+            m.vddp_v
+                .map(|v| format!("{:.4}", v))
+                .unwrap_or_else(|| "-".into()),
+            m.vddg_v
+                .map(|v| format!("{:.4}", v))
+                .unwrap_or_else(|| "-".into()),
         )));
     }
     push_pbo_line(&mut lines, "PPT", m.ppt_current_w, m.ppt_limit_w, "W");
@@ -384,7 +400,13 @@ fn system_lines(app: &App) -> Vec<Line<'static>> {
     lines
 }
 
-fn push_pbo_line(lines: &mut Vec<Line<'static>>, name: &str, current: Option<f64>, limit: Option<f64>, unit: &str) {
+fn push_pbo_line(
+    lines: &mut Vec<Line<'static>>,
+    name: &str,
+    current: Option<f64>,
+    limit: Option<f64>,
+    unit: &str,
+) {
     if let (Some(cur), Some(lim)) = (current, limit) {
         let pct = if lim > 0.0 { cur / lim * 100.0 } else { 0.0 };
         lines.push(Line::from(format!(
@@ -472,7 +494,8 @@ fn power_style(power: Option<f64>) -> Style {
 }
 
 fn fmt_opt(v: Option<f64>) -> String {
-    v.map(|v| format!("{:.1}", v)).unwrap_or_else(|| "-".to_string())
+    v.map(|v| format!("{:.1}", v))
+        .unwrap_or_else(|| "-".to_string())
 }
 
 fn fmt_opt_f(v: Option<f64>, prec: usize) -> String {
@@ -484,7 +507,12 @@ fn fmt_opt_f(v: Option<f64>, prec: usize) -> String {
 mod tests {
     use super::*;
 
-    fn core_with(power: Option<f64>, c0: Option<f64>, cc1: Option<f64>, cc6: Option<f64>) -> CoreMetrics {
+    fn core_with(
+        power: Option<f64>,
+        c0: Option<f64>,
+        cc1: Option<f64>,
+        cc6: Option<f64>,
+    ) -> CoreMetrics {
         CoreMetrics {
             power_w: power,
             c0_pct: c0,
@@ -553,7 +581,10 @@ mod tests {
     #[test]
     fn test_freq_state_style_falls_back_to_cstates() {
         let active = core_with(None, Some(99.0), Some(1.0), Some(0.0));
-        assert_eq!(freq_state_style(&active), Style::new().fg(Color::Green).bold());
+        assert_eq!(
+            freq_state_style(&active),
+            Style::new().fg(Color::Green).bold()
+        );
 
         let no_data = core_with(None, None, None, None);
         assert_eq!(freq_state_style(&no_data), Style::new().fg(Color::DarkGray));
@@ -595,7 +626,10 @@ mod tests {
         }
         assert_eq!(hist.len(), HISTORY_LEN);
         // Oldest entries should have been dropped; last pushed value is at the back.
-        assert_eq!(hist.back().copied().flatten(), Some((HISTORY_LEN + 9) as u64));
+        assert_eq!(
+            hist.back().copied().flatten(),
+            Some((HISTORY_LEN + 9) as u64)
+        );
     }
 
     #[test]
