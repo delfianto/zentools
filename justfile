@@ -1,4 +1,6 @@
-bin     := "zentools"
+# zentools — baseline + multicall symlinks (zen-epp / zen-smu / zen-mem)
+
+bins    := "zentools"
 bin_dir := env_var("HOME") / ".local/bin"
 sys_dir := "/usr/local/bin"
 
@@ -6,11 +8,11 @@ sys_dir := "/usr/local/bin"
 default:
     @just --list
 
-# Build release binary
+# Build release binaries
 build:
     cargo build --release
 
-# Run tests
+# Run unit/integration tests that do not need live external services
 test:
     cargo test
 
@@ -26,12 +28,30 @@ fmt-check:
 lint:
     cargo clippy --all-targets --all-features -- -D warnings
 
-# Full local gate, mirrors CI
+# Full local gate, mirrors CI (fmt + clippy + tests)
 check: fmt-check lint test
+
+# Compress every release binary with upx (skips a binary if already packed)
+compress: build
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v upx >/dev/null 2>&1; then
+        echo "compress: upx not found in PATH" >&2
+        exit 1
+    fi
+    for b in {{bins}}; do
+        path="target/release/$b"
+        if [ ! -f "$path" ]; then
+            echo "compress: missing $path (is bins= correct?)" >&2
+            exit 1
+        fi
+        upx -t "$path" >/dev/null 2>&1 || upx --best --lzma "$path"
+        echo "compressed $path"
+    done
 
 # Install into ~/.local/bin (default) or /usr/local/bin (--system, via sudo),
 # with busybox-style zen-epp / zen-smu / zen-mem symlinks alongside the binary.
-install *flags: build
+install *flags: compress
     #!/usr/bin/env bash
     set -euo pipefail
     dir="{{bin_dir}}"
@@ -42,11 +62,14 @@ install *flags: build
             *) echo "install: unknown flag '$f' (only --system is supported)" >&2; exit 1 ;;
         esac
     done
-    $sudo install -Dm755 target/release/{{bin}} "$dir/{{bin}}"
-    for tool in zen-epp zen-smu zen-mem; do
-        $sudo ln -sf "{{bin}}" "$dir/$tool"   # relative target -> sibling {{bin}}
+    for b in {{bins}}; do
+        $sudo install -Dm755 "target/release/$b" "$dir/$b"
+        echo "installed $dir/$b"
     done
-    echo "installed $dir/{{bin}} (+ zen-epp, zen-smu, zen-mem)"
+    for tool in zen-epp zen-smu zen-mem; do
+        $sudo ln -sf "zentools" "$dir/$tool"
+    done
+    echo "linked zen-epp zen-smu zen-mem -> zentools"
 
 # Remove installed binary + symlinks (pass --system for /usr/local/bin via sudo)
 uninstall *flags:
@@ -60,8 +83,12 @@ uninstall *flags:
             *) echo "uninstall: unknown flag '$f' (only --system is supported)" >&2; exit 1 ;;
         esac
     done
-    $sudo rm -f "$dir/{{bin}}" "$dir/zen-epp" "$dir/zen-smu" "$dir/zen-mem"
-    echo "removed $dir/{{bin}} and zen-* symlinks"
+    for b in {{bins}}; do
+        $sudo rm -f "$dir/$b"
+        echo "removed $dir/$b"
+    done
+    $sudo rm -f "$dir/zen-epp" "$dir/zen-smu" "$dir/zen-mem"
+    echo "removed zen-* symlinks"
 
 # Remove build artifacts
 clean:
