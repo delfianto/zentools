@@ -1,4 +1,4 @@
-# zen
+# zentools
 
 AMD Ryzen CPU management and monitoring tool for Linux.
 
@@ -11,15 +11,15 @@ EPP power profile control, SMU telemetry monitoring, and DDR4/DDR5 memory timing
 
 | Command | What it does | Requires |
 |---------|-------------|----------|
-| `zen epp show` | Show current EPP power profile for all CPUs | sudo, amd-pstate driver |
-| `zen epp performance` | Set max performance profile | sudo |
-| `zen -p0` .. `zen -p3` | Quick EPP level (0=perf, 1=bal-perf, 2=bal-power, 3=power) | sudo |
-| `zen smu info` | SMU version, codename, PM table info | sudo, ryzen_smu module |
-| `zen smu monitor` | Live CPU monitoring (temp, power, voltage, per-core) | sudo |
-| `zen smu debug` | Full diagnostic dump (driver, registers, PM table scan) | sudo |
-| `zen smu pm-table -f` | Read PM table (use `--raw` for hex dump) | sudo, ryzen_smu module |
-| `zen mem` | Show DDR4/DDR5 memory timings | sudo |
-| `zen mem --raw` | Include raw UMC register values | sudo |
+| `zentools epp show` | Show current EPP power profile for all CPUs | sudo, amd-pstate driver |
+| `zentools epp performance` | Set max performance profile | sudo |
+| `zentools -p0` .. `zentools -p3` | Quick EPP level (0=perf, 1=bal-perf, 2=bal-power, 3=power) | sudo |
+| `zentools smu info` | SMU version, codename, PM table info | sudo, ryzen_smu module |
+| `zentools smu monitor` | Live CPU monitoring (temp, power, voltage, per-core) | sudo |
+| `zentools smu debug` | Full diagnostic dump (driver, registers, PM table scan) | sudo |
+| `zentools smu pm-table -f` | Read PM table (use `--raw` for hex dump) | sudo, ryzen_smu module |
+| `zentools mem` | Show DDR4/DDR5 memory timings | sudo |
+| `zentools mem --raw` | Include raw UMC register values | sudo |
 
 ## Install
 
@@ -30,15 +30,18 @@ cd zentools
 # Build + install to ~/.local/bin with symlinks
 just install
 
+# Or into /usr/local/bin (via sudo)
+just install --system
+
 # Or manually
 cargo build --release
-sudo cp target/release/zen /usr/local/bin/
+sudo cp target/release/zentools /usr/local/bin/
 ```
 
 The `just install` command creates busybox-style symlinks so you can also run:
-- `epp show` instead of `zen epp show`
-- `smu info` instead of `zen smu info`
-- `mem` instead of `zen mem`
+- `zen-epp show` instead of `zentools epp show`
+- `zen-smu info` instead of `zentools smu info`
+- `zen-mem` instead of `zentools mem`
 
 ### Prerequisites
 
