@@ -1,10 +1,10 @@
-//! zen - AMD Ryzen management tool
+//! zentools - AMD Ryzen management tool
 //!
 //! Single binary with busybox-style dispatch:
-//! - `zen` — full CLI with all subcommands
-//! - `epp` — EPP management only (symlink to zen)
-//! - `smu` — SMU monitoring only (symlink to zen)
-//! - `mem` — memory timings only (symlink to zen)
+//! - `zentools` — full CLI with all subcommands
+//! - `zen-epp` — EPP management only (symlink to zentools)
+//! - `zen-smu` — SMU monitoring only (symlink to zentools)
+//! - `zen-mem` — memory timings only (symlink to zentools)
 
 mod cmd;
 
@@ -15,9 +15,9 @@ use clap::{CommandFactory, Parser, Subcommand};
 // CLI Definitions
 // =============================================================================
 
-/// zen - AMD Ryzen CPU management utility
+/// zentools - AMD Ryzen CPU management utility
 #[derive(Parser, Debug)]
-#[command(name = "zen", author, version, about, long_about = None)]
+#[command(name = "zentools", author, version, about, long_about = None)]
 #[command(after_help = EXTENDED_HELP)]
 struct Cli {
     #[command(subcommand)]
@@ -99,17 +99,17 @@ pub enum SmuCommands {
     Debug,
 }
 
-/// EPP-only CLI (symlink: epp -> zen)
+/// EPP-only CLI (symlink: zen-epp -> zentools)
 #[derive(Parser, Debug)]
-#[command(name = "epp", about = "AMD Ryzen EPP management")]
+#[command(name = "zen-epp", about = "AMD Ryzen EPP management")]
 struct EppCli {
     #[command(subcommand)]
     command: EppCommands,
 }
 
-/// SMU-only CLI (symlink: smu -> zen)
+/// SMU-only CLI (symlink: zen-smu -> zentools)
 #[derive(Parser, Debug)]
-#[command(name = "smu", about = "AMD Ryzen SMU monitoring")]
+#[command(name = "zen-smu", about = "AMD Ryzen SMU monitoring")]
 struct SmuCli {
     #[command(subcommand)]
     command: SmuCommands,
@@ -130,15 +130,15 @@ fn main() {
         .unwrap_or_default();
 
     let result = match binary_name.as_str() {
-        "epp" => {
+        "zen-epp" => {
             let cli = EppCli::parse();
             cmd::epp::handle_command(cli.command)
         }
-        "smu" => {
+        "zen-smu" => {
             let cli = SmuCli::parse();
             cmd::smu::handle_command(cli.command)
         }
-        "mem" => cmd::mem::handle(std::env::args().any(|a| a == "--raw" || a == "-r")),
+        "zen-mem" => cmd::mem::handle(std::env::args().any(|a| a == "--raw" || a == "-r")),
         _ => run(),
     };
 
@@ -177,27 +177,27 @@ fn run() -> Result<()> {
 const EXTENDED_HELP: &str = r#"
 EXAMPLES:
     # EPP Management
-    zen epp show                    # Show current EPP settings
-    zen epp performance             # Set to performance mode
-    zen -p0                         # Quick set to performance
-    zen -p2                         # Quick set to balance-power
-    zen -s                          # Quick show EPP status
+    zentools epp show               # Show current EPP settings
+    zentools epp performance        # Set to performance mode
+    zentools -p0                    # Quick set to performance
+    zentools -p2                    # Quick set to balance-power
+    zentools -s                     # Quick show EPP status
 
     # SMU Information
-    zen smu check                   # Check available data sources
-    zen smu info                    # Show SMU information
-    zen smu monitor                 # Live CPU monitoring
-    zen smu monitor -i 2            # Monitor every 2 seconds
-    zen smu pm-table --force        # Read PM table (force if unsupported)
+    zentools smu check              # Check available data sources
+    zentools smu info               # Show SMU information
+    zentools smu monitor            # Live CPU monitoring
+    zentools smu monitor -i 2       # Monitor every 2 seconds
+    zentools smu pm-table --force   # Read PM table (force if unsupported)
 
     # Memory Timings (ZenTimings for Linux)
-    zen mem                         # Show DDR4/DDR5 timings
-    zen mem --raw                   # Include raw register values
+    zentools mem                    # Show DDR4/DDR5 timings
+    zentools mem --raw              # Include raw register values
 
     # Busybox-style (symlinks created by `just install`)
-    epp show                        # Same as `zen epp show`
-    smu info                        # Same as `zen smu info`
-    mem                             # Same as `zen mem`
+    zen-epp show                    # Same as `zentools epp show`
+    zen-smu info                    # Same as `zentools smu info`
+    zen-mem                         # Same as `zentools mem`
 
 EPP PROFILES:
     -p0 / performance         - Maximum performance, higher power usage

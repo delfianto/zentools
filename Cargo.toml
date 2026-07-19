@@ -10,7 +10,7 @@ categories = ["command-line-utilities", "hardware-support"]
 description = "AMD Ryzen CPU management utility - EPP and SMU monitoring"
 
 [[bin]]
-name = "zen"
+name = "zentools"
 path = "src/main.rs"
 
 [dependencies]
