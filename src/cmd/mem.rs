@@ -1,7 +1,6 @@
 //! Memory timing command handler and display
 
 use anyhow::Result;
-use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::{Cell, CellAlignment, ContentArrangement, Table, presets::UTF8_FULL};
 use zentools::smu::{driver, mem, smn};
 
@@ -42,8 +41,7 @@ pub fn handle(raw: bool) -> Result<()> {
 
     // ── Info table ───────────────────────────────────────────────────────
     let mut info = Table::new();
-    info.load_preset(UTF8_FULL)
-        .apply_modifier(UTF8_ROUND_CORNERS)
+    info.load_style(UTF8_FULL.with_rounded_corners())
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_header(vec![
             Cell::new("Memory Info").set_alignment(CellAlignment::Center),
@@ -97,8 +95,7 @@ pub fn handle(raw: bool) -> Result<()> {
 
     // ── Timing table ─────────────────────────────────────────────────────
     let mut tim = Table::new();
-    tim.load_preset(UTF8_FULL)
-        .apply_modifier(UTF8_ROUND_CORNERS)
+    tim.load_style(UTF8_FULL.with_rounded_corners())
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_header(vec![
             Cell::new("Timing").set_alignment(CellAlignment::Left),
@@ -170,8 +167,7 @@ pub fn handle(raw: bool) -> Result<()> {
         let base = ch.channel_id << 20;
         let mut raw_table = Table::new();
         raw_table
-            .load_preset(UTF8_FULL)
-            .apply_modifier(UTF8_ROUND_CORNERS)
+            .load_style(UTF8_FULL.with_rounded_corners())
             .set_content_arrangement(ContentArrangement::Dynamic)
             .set_header(vec![
                 Cell::new("Addr").set_alignment(CellAlignment::Center),
