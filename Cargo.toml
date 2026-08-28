@@ -2,6 +2,7 @@
 name = "zentools"
 version = "0.3.0"
 edition = "2024"
+rust-version = "1.98.0"
 authors = ["Delf <delf@example.com>"]
 license = "MIT"
 repository = "https://github.com/yourusername/zentools"
@@ -17,7 +18,7 @@ path = "src/main.rs"
 anyhow = "1"
 byteorder = "1"
 clap = { version = "4", features = ["derive"] }
-comfy-table = "7"
+comfy-table = "8"
 ctrlc = "3"
 ratatui = { version = "0.30.2", default-features = false, features = ["crossterm", "std"] }
 thiserror = "2"

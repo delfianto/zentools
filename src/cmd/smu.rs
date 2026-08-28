@@ -60,7 +60,7 @@ fn info(verbose: bool) -> Result<()> {
 
     let mut table = Table::new();
     table
-        .load_preset(UTF8_FULL)
+        .load_style(UTF8_FULL)
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_header(vec![
             Cell::new("AMD Ryzen SMU Information").set_alignment(CellAlignment::Center),
@@ -399,7 +399,7 @@ fn display_pm_table(force: bool, raw: bool) -> Result<()> {
         if named.is_empty() {
             let mut table = Table::new();
             table
-                .load_preset(UTF8_FULL)
+                .load_style(UTF8_FULL)
                 .set_content_arrangement(ContentArrangement::Dynamic)
                 .set_header(vec![
                     Cell::new("PM Table Information").set_alignment(CellAlignment::Center),
@@ -415,7 +415,7 @@ fn display_pm_table(force: bool, raw: bool) -> Result<()> {
         } else {
             let mut table = Table::new();
             table
-                .load_preset(UTF8_FULL)
+                .load_style(UTF8_FULL)
                 .set_content_arrangement(ContentArrangement::Dynamic)
                 .set_header(vec![
                     Cell::new("Field").set_alignment(CellAlignment::Left),
