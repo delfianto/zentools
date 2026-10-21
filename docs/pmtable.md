@@ -122,7 +122,7 @@ Sanity check: C0 + CC1 + CC6 sums to ~100% independently in both idle and loaded
 
 The 8-core family (`0x620105`, `0x621101`, `0x621102`) has a rougher, internally inconsistent community draft (duplicate/conflicting offset assignments) and was not ported — it needs fresh reverse-engineering rather than blind porting.
 
-**Still unmapped**: PPT/TDC/EDC, per-core frequency, Tctl (not needed via PM table — the same value is available via the direct SMN register, see `DETECTION.md`). The 2452-byte table has ~613 potential f32 fields — only 14 are identified across the system-level and per-core maps. AMD does not publish PM table documentation for any generation.
+**Still unmapped**: PPT/TDC/EDC, per-core frequency, Tctl (not needed via PM table — the same value is available via the direct SMN register, see `detection.md`). The 2452-byte table has ~613 potential f32 fields — only 14 are identified across the system-level and per-core maps. AMD does not publish PM table documentation for any generation.
 
 ## Reverse Engineering
 
@@ -142,3 +142,36 @@ diff idle.txt load.txt
 ```
 
 Look for f32 values that correlate with known sensor readings (temperature from `sensors`, power from RAPL, frequency from `/proc/cpuinfo`).
+
+## Live mprime comparison, 2026-10-21
+
+Ryzen 9 9950X, SMU 98.84.0, PM table `0x620205`, 2452 bytes. Ran `mprime -t` for 75 seconds in a temporary working directory, with a fixed 16K in-place AVX-512 FFT, 16 workers and two threads per worker (32 threads total). EPP was unchanged. Collected 12 one-second PM-table samples per phase, with `/proc/stat` utilization, k10temp Tctl, and independent package RAPL energy deltas. Recovery sampling began about eight seconds after the workload stopped. The desktop remained running; “idle” means unloaded by mprime, not a fully quiescent machine.
+
+| Metric | Idle | Load | Recovery |
+|--------|------|------|----------|
+| CPU busy (`/proc/stat`) | 7.76% | 99.99% | 8.32% |
+| Package power (RAPL energy / elapsed time) | 67.76 W | 196.72 W | 70.08 W |
+| Mean Tctl (k10temp) | 58.78 C | 83.15 C | 58.42 C |
+| Maximum sampled Tctl | 61.63 C | 84.50 C | 61.38 C |
+| Sum of 16 core powers (`0x4B4` base) | 27.31 W | 142.03 W | 25.27 W |
+| Mean core C0 (`0x5F4` base) | 13.89% | 100.00% | 14.92% |
+| Mean core CC1 (`0x634` base) | 48.07% | 0.00% | 45.24% |
+| Mean core CC6 (`0x674` base) | 38.04% | 0.00% | 39.84% |
+
+The C-state averages sum to ~100% in all three phases. This supports the existing per-core residency mappings. OS logical-CPU busy time and SMU physical-core C0 are different measurements and need not match at idle.
+
+Every captured UMC register and decoded memory timing was identical across all three phases, on both channels. Memory remained DDR5-6000 (MCLK 3000 MHz), tCL/tRCDRD/tRP/tRAS 30/36/36/76, tRFC 884, tRFC2 480, tRFCsb 390, tREFI 11677, and tPHYRDL 36. See [memory.md](memory.md) for the corrected refresh decoding and additional subtimings.
+
+Several previously unnamed f32 fields tracked package power. These remain **unassigned candidates**, not new production mappings:
+
+| Offset | Idle mean | Load mean | Recovery mean |
+|--------|-----------|-----------|---------------|
+| `0x00C` | 69.30 | 196.84 | 68.20 |
+| `0x068` | 69.38 | 197.33 | 68.10 |
+| `0x454` | 70.12 | 196.67 | 67.92 |
+
+The experiment cannot distinguish package power, PPT, filtered power or other related measurements among these candidates. Repeat with a different workload and controlled power limits before naming them. In particular, `0x454` must not inherit the Zen 4 “Tctl” label: on this table it reached ~197 while independent Tctl was ~83 C.
+
+The earlier disproven per-core frequency candidate at float index 461 remains unmapped. This run did not establish a replacement frequency offset.
+
+Raw evidence for this local run is in `/tmp/zentools-mprime-20261021/`: 36 binary PM tables, per-phase memory/info/EPP/sensor captures, independent samples in JSON, `pm-diff.csv` covering every finite f32 offset, `summary.json`, and the temporary mprime configuration. The workload stopped cleanly at its time limit; workers reported zero errors and warnings. This brief experiment establishes load-response behavior, not long-term stability.

@@ -18,8 +18,8 @@ EPP power profile control, SMU telemetry monitoring, and DDR4/DDR5 memory timing
 | `zentools smu monitor` | Live CPU monitoring (temp, power, voltage, per-core) | sudo |
 | `zentools smu debug` | Full diagnostic dump (driver, registers, PM table scan) | sudo |
 | `zentools smu pm-table -f` | Read PM table (use `--raw` for hex dump) | sudo, ryzen_smu module |
-| `zentools mem` | Show DDR4/DDR5 memory timings | sudo |
-| `zentools mem --raw` | Include raw UMC register values | sudo |
+| `zentools mem` | Show primary timings and subtimings for every detected channel | sudo, readable ryzen_smu metadata for DDR5 detection |
+| `zentools mem --raw` | Include captured UMC registers and all refresh banks | sudo |
 
 ## Install
 
@@ -68,7 +68,7 @@ sudo modprobe msr
 | Zen 4 | Raphael (7000) | Partial (5 fields + per-core) | DDR5 |
 | Zen 5 | Granite Ridge (9000) | Partial (8 fields, clocks + voltages) | DDR5 |
 
-EPP control and direct register monitoring (temperature, RAPL power) work on all generations. PM table field mapping varies — see [docs/PMTABLE.md](docs/PMTABLE.md) for the full offset reference.
+EPP control and direct register monitoring (temperature, RAPL power) work on all generations. PM table field mapping varies — see [docs/pmtable.md](docs/pmtable.md) for the full offset reference.
 
 ## Quick Examples
 
@@ -82,6 +82,9 @@ sudo zen smu monitor
 # Memory timings
 sudo zen mem
 
+# Per-channel subtimings and refresh-bank register values
+sudo zen mem --raw
+
 # Full diagnostic
 sudo zen smu debug
 
@@ -93,11 +96,12 @@ sudo zen smu check
 
 | Document | Contents |
 |----------|----------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Project structure, module design, separation of concerns |
-| [docs/DETECTION.md](docs/DETECTION.md) | CPU identification, tiered data sources, register addresses |
-| [docs/PMTABLE.md](docs/PMTABLE.md) | PM table versions, field offset maps, reverse engineering guide |
-| [docs/MEMORY.md](docs/MEMORY.md) | UMC register map, DDR4/DDR5 differences, timing parameters |
-| [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) | Crate dependencies, system requirements, build profile |
+| [docs/architecture.md](docs/architecture.md) | Project structure, module design, separation of concerns |
+| [docs/detection.md](docs/detection.md) | CPU identification, tiered data sources, register addresses |
+| [docs/pmtable.md](docs/pmtable.md) | PM table versions, field offset maps, reverse engineering guide |
+| [docs/memory.md](docs/memory.md) | UMC register map, DDR4/DDR5 differences, timing parameters |
+| [docs/probing.md](docs/probing.md) | AOD firmware getters, electrical settings, frequency and power experiments |
+| [docs/dependencies.md](docs/dependencies.md) | Crate dependencies, system requirements, build profile |
 
 ## Development
 
@@ -125,7 +129,7 @@ sudo zen smu pm-table -f --raw > load.txt
 diff idle.txt load.txt
 ```
 
-Correlate changing offsets with known values from `sensors`, `zen smu debug`, or `zen mem`. See [docs/PMTABLE.md](docs/PMTABLE.md) for details.
+Correlate changing offsets with known values from `sensors`, `zen smu debug`, or `zen mem`. See [docs/pmtable.md](docs/pmtable.md) for details.
 
 ## Credits
 

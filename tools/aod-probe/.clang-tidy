@@ -1,0 +1,5 @@
+InheritParentConfig: false
+Checks: '-*,clang-analyzer-*'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(^|/)(zentools_aod_probe\.c|objects\.h)$'
+SystemHeaders: false
