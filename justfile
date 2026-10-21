@@ -334,3 +334,20 @@ clean:
 # # compose-utils: script body OK; recipe names stay setup/teardown
 # # setup *args:
 # #     ./systemd/install.sh {{args}}
+
+# ===========================================================================
+# EXCEPTIONS — research tooling checks (no hardware access)
+# ===========================================================================
+
+# Lint, format-check, and typecheck every project Python file.
+lint-python:
+    ruff check .
+    ruff format --check .
+    basedpyright
+
+# Check kernel C style, compile with warnings denied, and run Clang static analysis.
+lint-c:
+    bash tools/aod-probe/check-c.sh
+
+# Check both research-tool languages without loading the kernel helper.
+lint-tools: lint-python lint-c

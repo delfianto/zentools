@@ -6,6 +6,7 @@
 
 use super::smn::SmnReader;
 use super::types::SmuError;
+use std::collections::BTreeMap;
 
 // =============================================================================
 // UMC Register Addresses (relative to channel base)
@@ -38,6 +39,13 @@ const UMC_RFC: u32 = 0x50260;
 // Power management
 const UMC_PWR_CFG: u32 = 0x5012C;
 
+/// Additional timing registers with layouts shared by DDR4 and DDR5.
+const EXTRA_TIMING_REGS: &[u32] = &[0x5021C, 0x50234, 0x50238, 0x50250, 0x50254, 0x50258];
+
+/// Values captured during decoding, keyed by channel-relative SMN address.
+/// None indicates a failed read, rather than a hardware value of zero.
+pub type MemRegisters = BTreeMap<u32, Option<u32>>;
+
 /// Maximum channels to probe (2 for desktop, 4 for HEDT, 8 for server)
 const MAX_CHANNELS: u32 = 8;
 
@@ -68,7 +76,8 @@ pub struct MemTimings {
     pub frequency_mhz: f64,
     pub cmd2t: bool,
     pub gdm: bool,
-    pub power_down: bool,
+    /// Configured power-down enable; this is not current residency.
+    pub power_down: Option<bool>,
 
     // Primary timings
     pub tcl: u32,
@@ -102,9 +111,29 @@ pub struct MemTimings {
 
     // Refresh
     pub trefi: u32,
-    pub trfc: u32,
-    pub trfc2: u32,
-    pub trfc4: u32,
+    pub trfc: Option<u32>,
+    pub trfc2: Option<u32>,
+    pub trfc4: Option<u32>,
+    pub trfcsb: Option<u32>,
+
+    // Additional subtimings (None if the register could not be read)
+    pub trcpage: Option<u32>,
+    pub tmod: Option<u32>,
+    pub tmodpda: Option<u32>,
+    pub tmrd: Option<u32>,
+    pub tmrdpda: Option<u32>,
+    pub txs: Option<u32>,
+    pub tdllk: Option<u32>,
+    pub tstag: Option<u32>,
+    pub tcke: Option<u32>,
+    pub tcpded: Option<u32>,
+    pub txp: Option<u32>,
+    pub tphywrd: Option<u32>,
+    pub tphyrdl: Option<u32>,
+    pub tphywrl: Option<u32>,
+    pub trddataen: Option<u32>,
+    /// DDR5 Nitro RX data / TX data / control-line settings.
+    pub nitro: Option<[u32; 3]>,
 }
 
 /// Information about a memory channel
@@ -114,6 +143,7 @@ pub struct MemChannel {
     pub dimm0_present: bool,
     pub dimm1_present: bool,
     pub timings: MemTimings,
+    pub registers: MemRegisters,
 }
 
 /// Complete memory configuration
@@ -147,13 +177,15 @@ pub fn read_mem_config(smn: &SmnReader, mem_type: MemType) -> Result<MemConfig, 
             continue;
         }
 
-        let timings = read_channel_timings(smn, base, mem_type)?;
+        let (timings, registers) =
+            read_channel_timings(|addr| smn.read_register(base | addr), mem_type)?;
 
         channels.push(MemChannel {
             channel_id: ch,
             dimm0_present: dimm0,
             dimm1_present: dimm1,
             timings,
+            registers,
         });
     }
 
@@ -181,23 +213,79 @@ fn detect_dimms(smn: &SmnReader, base: u32, _mem_type: MemType) -> (bool, bool) 
 
 /// Read all timing registers for a single channel
 fn read_channel_timings(
-    smn: &SmnReader,
-    base: u32,
+    mut read: impl FnMut(u32) -> Result<u32, SmuError>,
     mem_type: MemType,
-) -> Result<MemTimings, SmuError> {
-    let cfg = smn.read_register(base | UMC_CFG)?;
-    let tim0 = smn.read_register(base | UMC_TIM0)?;
-    let tim1 = smn.read_register(base | UMC_TIM1)?;
-    let tim2 = smn.read_register(base | UMC_TIM2)?;
-    let tim3 = smn.read_register(base | UMC_TIM3)?;
-    let tim4 = smn.read_register(base | UMC_TIM4)?;
-    let tim5 = smn.read_register(base | UMC_TIM5)?;
-    let tim6 = smn.read_register(base | UMC_TIM6)?;
-    let tim7 = smn.read_register(base | UMC_TIM7)?;
-    let tim8 = smn.read_register(base | UMC_TIM8)?;
-    let refi = smn.read_register(base | UMC_REFI)?;
-    let rfc = smn.read_register(base | UMC_RFC)?;
-    let pwr = smn.read_register(base | UMC_PWR_CFG).unwrap_or(0);
+) -> Result<(MemTimings, MemRegisters), SmuError> {
+    let mut registers = MemRegisters::new();
+    let mut read = |addr| {
+        let result = read(addr).and_then(|value| {
+            if value == u32::MAX {
+                Err(SmuError::SmnError {
+                    address: addr,
+                    reason: "UMC register returned all ones".into(),
+                })
+            } else {
+                Ok(value)
+            }
+        });
+        registers.insert(addr, result.as_ref().ok().copied());
+        result
+    };
+    let cfg = read(UMC_CFG)?;
+    let tim0 = read(UMC_TIM0)?;
+    let tim1 = read(UMC_TIM1)?;
+    let tim2 = read(UMC_TIM2)?;
+    let tim3 = read(UMC_TIM3)?;
+    let tim4 = read(UMC_TIM4)?;
+    let tim5 = read(UMC_TIM5)?;
+    let tim6 = read(UMC_TIM6)?;
+    let tim7 = read(UMC_TIM7)?;
+    let tim8 = read(UMC_TIM8)?;
+    let refi = read(UMC_REFI)?;
+    let pwr = read(UMC_PWR_CFG).ok();
+
+    // Refresh timings are banked by DIMM/rank. Skip unpopulated defaults.
+    // DDR5 uses 16-bit RFC/RFC2 fields, not DDR4's packed 11/11/10 layout.
+    let rfc_count = if mem_type == MemType::DDR5 { 4 } else { 2 };
+    let default_rfc = if mem_type == MemType::DDR5 {
+        0x00C00138
+    } else {
+        0x21060138
+    };
+    let rfc_values: Vec<_> = (0..rfc_count)
+        .filter_map(|i| read(UMC_RFC + i * 4).ok())
+        .filter(|&v| v != 0)
+        .collect();
+    let rfc = rfc_values
+        .iter()
+        .copied()
+        .find(|&v| v != default_rfc)
+        // DDR4's default can also be a valid timing; preserve it if both match.
+        .or_else(|| {
+            (mem_type == MemType::DDR4)
+                .then(|| rfc_values.first().copied())
+                .flatten()
+        });
+    let trfcsb = if mem_type == MemType::DDR5 {
+        let values: Vec<_> = (0..4).filter_map(|i| read(0x502C0 + i * 4).ok()).collect();
+        values.into_iter().map(|v| v & 0x7FF).find(|&v| v != 0)
+    } else {
+        None
+    };
+    for &addr in EXTRA_TIMING_REGS {
+        let _ = read(addr);
+    }
+    if mem_type == MemType::DDR5 {
+        let _ = read(0x50284);
+    }
+    let field = |addr, start, width| {
+        registers
+            .get(&addr)
+            .copied()
+            .flatten()
+            .map(|v| extract_bits(v, start, width))
+    };
+    let ddr5 = mem_type == MemType::DDR5;
 
     // Frequency extraction differs between DDR4 and DDR5:
     // DDR4: bits [6:0] = ratio, freq = ratio / 3 * bclk * 2
@@ -219,13 +307,13 @@ fn read_channel_timings(
         _ => ((cfg >> 10) & 1 != 0, (cfg >> 11) & 1 != 0),
     };
 
-    Ok(MemTimings {
+    let timings = MemTimings {
         mem_type: Some(mem_type),
         ratio,
         frequency_mhz,
         cmd2t,
         gdm,
-        power_down: (pwr >> 28) & 1 != 0,
+        power_down: pwr.map(|v| (v >> 28) & 1 != 0),
 
         // Primary
         tcl: tim0 & 0x3F,
@@ -239,33 +327,63 @@ fn read_channel_timings(
         trrds: tim2 & 0x1F,
         trrdl: (tim2 >> 8) & 0x1F,
         trtp: (tim2 >> 24) & 0x1F,
-        tfaw: tim3 & 0xFF,
+        tfaw: tim3 & if ddr5 { 0xFF } else { 0x7F },
         tcwl: tim4 & 0x3F,
         twtrs: (tim4 >> 8) & 0x1F,
         twtrl: (tim4 >> 16) & 0x7F,
-        twr: tim5 & 0xFF,
+        twr: tim5 & if ddr5 { 0xFF } else { 0x7F },
 
         // Tertiary
         trdrddd: tim6 & 0xF,
         trdrdsd: (tim6 >> 8) & 0xF,
         trdrdsc: (tim6 >> 16) & 0xF,
-        trdrdscl: (tim6 >> 24) & 0x3F,
+        trdrdscl: (tim6 >> 24) & if ddr5 { 0x3F } else { 0xF },
         twrwrdd: tim7 & 0xF,
         twrwrsd: (tim7 >> 8) & 0xF,
         twrwrsc: (tim7 >> 16) & 0xF,
         twrwrscl: (tim7 >> 24) & 0x3F,
         twrrd: tim8 & 0xF,
-        trdwr: (tim8 >> 8) & 0x3F,
+        trdwr: (tim8 >> 8) & if ddr5 { 0x3F } else { 0x1F },
 
         // Refresh
         trefi: refi & 0xFFFF,
-        trfc: rfc & 0x7FF,
-        trfc2: (rfc >> 11) & 0x7FF,
-        trfc4: (rfc >> 22) & 0x3FF,
-    })
+        trfc: rfc.map(|v| v & if ddr5 { 0xFFFF } else { 0x7FF }),
+        trfc2: rfc.map(|v| if ddr5 { v >> 16 } else { (v >> 11) & 0x7FF }),
+        trfc4: if ddr5 {
+            None
+        } else {
+            rfc.map(|v| (v >> 22) & 0x3FF)
+        },
+        trfcsb,
+        trcpage: field(0x5021C, 20, 12),
+        tmod: field(0x50234, 8, 6),
+        tmodpda: field(0x50234, 24, 6),
+        tmrd: field(0x50234, 0, 6),
+        tmrdpda: field(0x50234, 16, 6),
+        txs: field(0x50238, 0, if ddr5 { 12 } else { 11 }),
+        tdllk: field(0x50238, 16, if ddr5 { 12 } else { 11 }),
+        tstag: field(0x50250, 16, if ddr5 { 11 } else { 8 }),
+        tcke: field(0x50254, 24, 5),
+        tcpded: field(0x50254, 16, if ddr5 { 5 } else { 4 }),
+        txp: field(0x50254, 0, 6),
+        tphywrd: field(0x50258, 24, 3),
+        tphyrdl: field(0x50258, 16, if ddr5 { 8 } else { 6 }),
+        tphywrl: field(0x50258, 8, if ddr5 { 8 } else { 5 }),
+        trddataen: field(0x50258, 0, 7),
+        nitro: if ddr5 {
+            registers
+                .get(&0x50284)
+                .copied()
+                .flatten()
+                .map(|v| [(v >> 8) & 3, (v >> 4) & 3, v & 3])
+        } else {
+            None
+        },
+    };
+    Ok((timings, registers))
 }
 
-/// Extract a single bit field from a u32 (for testing)
+/// Extract a single bit field from a u32.
 pub fn extract_bits(value: u32, start: u32, width: u32) -> u32 {
     (value >> start) & ((1 << width) - 1)
 }
@@ -273,6 +391,121 @@ pub fn extract_bits(value: u32, start: u32, width: u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn decode_fixture(values: &[(u32, u32)], mem_type: MemType) -> (MemTimings, MemRegisters) {
+        read_channel_timings(
+            |addr| Ok(values.iter().find(|v| v.0 == addr).map_or(0, |v| v.1)),
+            mem_type,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn decode_9950x_ddr5_snapshot() {
+        // Captured on both UMC channels of a 9950X, DDR5-6000, 2026-10-21.
+        let (t, raw) = decode_fixture(
+            &[
+                (0x50200, 0x80050BB8),
+                (0x50204, 0x24244C1E),
+                (0x50208, 0x00240070),
+                (0x5020C, 0x17000F08),
+                (0x50210, 0x20),
+                (0x50214, 0x001E081C),
+                (0x50218, 0x5A),
+                (0x50220, 0x08010B0B),
+                (0x50224, 0x17010B0B),
+                (0x50228, 0x1508),
+                (0x50230, 0x00C02D9D),
+                (0x5012C, 0x15381140),
+                (0x50234, 0x20202A2A),
+                (0x50238, 0x07000392),
+                (0x50250, 0x00070000),
+                (0x50254, 0x000F0D17),
+                (0x50258, 0x06241012),
+                (0x50260, 0x00C00138),
+                (0x50264, 0x00C00138),
+                (0x50268, 0x01E00374),
+                (0x5026C, 0x01E00374),
+                (0x502C8, 0x005A0186),
+                (0x502CC, 0x005A0186),
+                (0x50284, 0x00000231),
+            ],
+            MemType::DDR5,
+        );
+        assert_eq!(t.frequency_mhz, 6000.0);
+        assert_eq!((t.tcl, t.trcdrd, t.trp, t.tras), (30, 36, 36, 76));
+        assert_eq!(
+            (t.trfc, t.trfc2, t.trfcsb, t.trfc4),
+            (Some(884), Some(480), Some(390), None)
+        );
+        assert_eq!((t.trdrdscl, t.twrwrscl), (8, 23));
+        assert_eq!(
+            (t.tmod, t.tmrdpda, t.txs, t.tdllk),
+            (Some(42), Some(32), Some(914), Some(1792))
+        );
+        assert_eq!(
+            (t.tphyrdl, t.tphywrl, t.tphywrd),
+            (Some(36), Some(16), Some(6))
+        );
+        assert_eq!(t.power_down, Some(true));
+        assert_eq!(t.nitro, Some([2, 3, 1]));
+        // All refresh banks must be captured, even after a usable value is found.
+        assert_eq!(raw.get(&0x502CC), Some(&Some(0x005A0186)));
+        assert_eq!(raw.get(&0x50260), Some(&Some(0x00C00138)));
+    }
+
+    #[test]
+    fn decode_ddr4_second_refresh_bank_and_reserved_bits() {
+        let (t, raw) = decode_fixture(
+            &[
+                (UMC_CFG, 48 | (1 << 11)),
+                (UMC_RFC, 0x21060138),
+                (UMC_RFC + 4, 350 | (260 << 11) | (160 << 22)),
+                (UMC_TIM3, 0x98),
+                (UMC_TIM5, 0x8C),
+                (UMC_TIM6, 0x34000000),
+                (UMC_TIM8, 0x2C00),
+            ],
+            MemType::DDR4,
+        );
+        assert_eq!(
+            (t.trfc, t.trfc2, t.trfc4),
+            (Some(350), Some(260), Some(160))
+        );
+        assert_eq!(t.trfcsb, None);
+        assert_eq!(t.nitro, None);
+        assert_eq!((t.tfaw, t.twr, t.trdrdscl, t.trdwr), (24, 12, 4, 12));
+        assert!(t.gdm);
+        assert!(!raw.contains_key(&0x502C0));
+    }
+
+    #[test]
+    fn unavailable_optional_registers_are_not_zero_or_disabled() {
+        let (t, raw) = read_channel_timings(
+            |addr| match addr {
+                UMC_PWR_CFG | 0x50258 | 0x50284 => Err(SmuError::SmnError {
+                    address: addr,
+                    reason: "fixture read failure".into(),
+                }),
+                0x50260..=0x5026C => Ok(0x00C00138),
+                0x502C0..=0x502CC => Ok(u32::MAX),
+                _ => Ok(0),
+            },
+            MemType::DDR5,
+        )
+        .unwrap();
+        assert_eq!((t.trfc, t.trfc2, t.trfcsb), (None, None, None));
+        assert_eq!(t.power_down, None);
+        assert_eq!(t.tphyrdl, None);
+        assert_eq!(t.nitro, None);
+        assert_eq!(raw.get(&0x50258), Some(&None));
+        assert_eq!(raw.get(&0x502CC), Some(&None));
+    }
+
+    #[test]
+    fn required_register_failure_aborts_decoding() {
+        assert!(read_channel_timings(|_| Ok(u32::MAX), MemType::DDR5).is_err());
+    }
 
     // =========================================================================
     // Register address constants
@@ -518,7 +751,7 @@ mod tests {
             frequency_mhz: 3200.0,
             cmd2t: false,
             gdm: true,
-            power_down: false,
+            power_down: Some(false),
             tcl: 16,
             trcdrd: 16,
             trcdwr: 16,
@@ -544,9 +777,10 @@ mod tests {
             trdwr: 12,
             twrrd: 3,
             trefi: 7800,
-            trfc: 350,
-            trfc2: 260,
-            trfc4: 160,
+            trfc: Some(350),
+            trfc2: Some(260),
+            trfc4: Some(160),
+            ..Default::default()
         };
 
         assert_eq!(t.tcl, 16);
@@ -570,7 +804,7 @@ mod tests {
             frequency_mhz: 6000.0,
             cmd2t: true,
             gdm: false,
-            power_down: true,
+            power_down: Some(true),
             tcl: 30,
             trcdrd: 36,
             trcdwr: 36,
@@ -596,9 +830,10 @@ mod tests {
             trdwr: 16,
             twrrd: 4,
             trefi: 3900,
-            trfc: 880,
-            trfc2: 660,
-            trfc4: 440,
+            trfc: Some(880),
+            trfc2: Some(660),
+            trfc4: None,
+            ..Default::default()
         };
 
         assert_eq!(t.tcl, 30);

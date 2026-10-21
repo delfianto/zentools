@@ -1,0 +1,7 @@
+{
+  "include": ["tools"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "recommended",
+  "failOnWarnings": true,
+  "executionEnvironments": [{ "root": "tools/aod-probe" }]
+}

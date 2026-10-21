@@ -1,0 +1,569 @@
+[
+  {
+    "id": 131161,
+    "method": 6,
+    "index": 82,
+    "length": 20,
+    "name": "Set Curve Shaper"
+  },
+  {
+    "id": 131160,
+    "method": 4,
+    "index": 81,
+    "length": 412,
+    "name": "Set SOC_DQ_DRV_PD_P0"
+  },
+  {
+    "id": 131159,
+    "method": 4,
+    "index": 80,
+    "length": 412,
+    "name": "Set SOC_DQ_DRV_PU_P0"
+  },
+  {
+    "id": 131158,
+    "method": 4,
+    "index": 79,
+    "length": 412,
+    "name": "Set SET_PROCESSOR_CK_LENGTH"
+  },
+  {
+    "id": 131157,
+    "method": 4,
+    "index": 78,
+    "length": 412,
+    "name": "Set SET_PROCESSOR_CS_LENGTH"
+  },
+  {
+    "id": 131156,
+    "method": 4,
+    "index": 77,
+    "length": 412,
+    "name": "Set DRAMDataDriveStrength PullDown P0"
+  },
+  {
+    "id": 131155,
+    "method": 4,
+    "index": 76,
+    "length": 412,
+    "name": "Set DRAMDataDriveStrength PullUp P0"
+  },
+  {
+    "id": 131154,
+    "method": 4,
+    "index": 75,
+    "length": 412,
+    "name": "Set ProcODT PullDown P0"
+  },
+  {
+    "id": 131153,
+    "method": 4,
+    "index": 74,
+    "length": 412,
+    "name": "Set ProcODT PullUp P0"
+  },
+  {
+    "id": 131152,
+    "method": 4,
+    "index": 73,
+    "length": 412,
+    "name": "Set Robust Training"
+  },
+  {
+    "id": 131151,
+    "method": 4,
+    "index": 72,
+    "length": 412,
+    "name": "Set Nitro Control Line"
+  },
+  {
+    "id": 131150,
+    "method": 4,
+    "index": 71,
+    "length": 412,
+    "name": "Set Nitro TX"
+  },
+  {
+    "id": 131149,
+    "method": 4,
+    "index": 70,
+    "length": 412,
+    "name": "Set Nitro RX"
+  },
+  {
+    "id": 131130,
+    "method": 4,
+    "index": 69,
+    "length": 412,
+    "name": "Set ECO Mode"
+  },
+  {
+    "id": 131144,
+    "method": 4,
+    "index": 68,
+    "length": 412,
+    "name": "Reset Mem Para"
+  },
+  {
+    "id": 131143,
+    "method": 4,
+    "index": 67,
+    "length": 412,
+    "name": "Set RMP PState"
+  },
+  {
+    "id": 131142,
+    "method": 4,
+    "index": 66,
+    "length": 412,
+    "name": "Set RMP Profile"
+  },
+  {
+    "id": 131141,
+    "method": 4,
+    "index": 65,
+    "length": 412,
+    "name": "Set RMP Mode"
+  },
+  {
+    "id": 131140,
+    "method": 4,
+    "index": 64,
+    "length": 412,
+    "name": "Set UCLK DIV1"
+  },
+  {
+    "id": 327691,
+    "method": 6,
+    "index": 63,
+    "length": 20,
+    "name": "Set VDDG IOD"
+  },
+  {
+    "id": 131128,
+    "method": 6,
+    "index": 62,
+    "length": 20,
+    "name": "Set CLDO VDDG"
+  },
+  {
+    "id": 196614,
+    "method": 6,
+    "index": 61,
+    "length": 20,
+    "name": "Set VDD_MISC"
+  },
+  {
+    "id": 131139,
+    "method": 6,
+    "index": 60,
+    "length": 20,
+    "name": "Set LCLK Freq"
+  },
+  {
+    "id": 131120,
+    "method": 6,
+    "index": 59,
+    "length": 20,
+    "name": "Set CLDO_VDDP"
+  },
+  {
+    "id": 131124,
+    "method": 6,
+    "index": 58,
+    "length": 20,
+    "name": "Set SOC VID"
+  },
+  {
+    "id": 131122,
+    "method": 4,
+    "index": 57,
+    "length": 412,
+    "name": "Set Interleave Size"
+  },
+  {
+    "id": 131121,
+    "method": 4,
+    "index": 56,
+    "length": 412,
+    "name": "Set Interleave Mode"
+  },
+  {
+    "id": 196612,
+    "method": 6,
+    "index": 55,
+    "length": 20,
+    "name": "Set APU VDDIO"
+  },
+  {
+    "id": 196611,
+    "method": 6,
+    "index": 54,
+    "length": 20,
+    "name": "Set VPP"
+  },
+  {
+    "id": 196615,
+    "method": 6,
+    "index": 53,
+    "length": 20,
+    "name": "Set DIMM VDDQ"
+  },
+  {
+    "id": 196609,
+    "method": 6,
+    "index": 52,
+    "length": 20,
+    "name": "Set VDDIO"
+  },
+  {
+    "id": 131125,
+    "method": 4,
+    "index": 51,
+    "length": 412,
+    "name": "Set FCLK Frequency"
+  },
+  {
+    "id": 131123,
+    "method": 4,
+    "index": 50,
+    "length": 412,
+    "name": "Set FCLK OC Mode"
+  },
+  {
+    "id": 131126,
+    "method": 6,
+    "index": 49,
+    "length": 20,
+    "name": "Set CCLK Fmax"
+  },
+  {
+    "id": 327684,
+    "method": 4,
+    "index": 48,
+    "length": 412,
+    "name": "Set Scalar"
+  },
+  {
+    "id": 327683,
+    "method": 6,
+    "index": 47,
+    "length": 20,
+    "name": "Set EDC Limit"
+  },
+  {
+    "id": 327682,
+    "method": 6,
+    "index": 46,
+    "length": 20,
+    "name": "Set TDC Limit"
+  },
+  {
+    "id": 327681,
+    "method": 6,
+    "index": 45,
+    "length": 20,
+    "name": "Set PPT Limit"
+  },
+  {
+    "id": 131109,
+    "method": 4,
+    "index": 44,
+    "length": 412,
+    "name": "Set PowerDwonEn"
+  },
+  {
+    "id": 131136,
+    "method": 6,
+    "index": 43,
+    "length": 20,
+    "name": "Set RttParkDqs"
+  },
+  {
+    "id": 131108,
+    "method": 6,
+    "index": 42,
+    "length": 20,
+    "name": "Set RttPark"
+  },
+  {
+    "id": 131107,
+    "method": 6,
+    "index": 41,
+    "length": 20,
+    "name": "Set RttWr"
+  },
+  {
+    "id": 131135,
+    "method": 6,
+    "index": 40,
+    "length": 20,
+    "name": "Set RttNomRd"
+  },
+  {
+    "id": 131134,
+    "method": 6,
+    "index": 39,
+    "length": 20,
+    "name": "Set RttNomWr"
+  },
+  {
+    "id": 131117,
+    "method": 4,
+    "index": 38,
+    "length": 412,
+    "name": "Set CadBusAddrCmdDrvStren"
+  },
+  {
+    "id": 131102,
+    "method": 6,
+    "index": 37,
+    "length": 20,
+    "name": "Set Trdwr"
+  },
+  {
+    "id": 131103,
+    "method": 6,
+    "index": 36,
+    "length": 20,
+    "name": "Set Twrrd"
+  },
+  {
+    "id": 131101,
+    "method": 6,
+    "index": 35,
+    "length": 20,
+    "name": "Set TwrwrDd"
+  },
+  {
+    "id": 131100,
+    "method": 6,
+    "index": 34,
+    "length": 20,
+    "name": "Set TwrwrSd"
+  },
+  {
+    "id": 131098,
+    "method": 6,
+    "index": 33,
+    "length": 20,
+    "name": "Set TwrwrSc"
+  },
+  {
+    "id": 131099,
+    "method": 6,
+    "index": 32,
+    "length": 20,
+    "name": "Set TwrwrScL"
+  },
+  {
+    "id": 131097,
+    "method": 6,
+    "index": 31,
+    "length": 20,
+    "name": "Set TrdrdDd"
+  },
+  {
+    "id": 131096,
+    "method": 6,
+    "index": 30,
+    "length": 20,
+    "name": "Set TrdrdSd"
+  },
+  {
+    "id": 131094,
+    "method": 6,
+    "index": 29,
+    "length": 20,
+    "name": "Set TrdrdSc"
+  },
+  {
+    "id": 131095,
+    "method": 6,
+    "index": 28,
+    "length": 20,
+    "name": "Set TrdrdScL"
+  },
+  {
+    "id": 131089,
+    "method": 6,
+    "index": 27,
+    "length": 20,
+    "name": "Set TwtrS"
+  },
+  {
+    "id": 131090,
+    "method": 6,
+    "index": 26,
+    "length": 20,
+    "name": "Set TwtrL"
+  },
+  {
+    "id": 131085,
+    "method": 6,
+    "index": 25,
+    "length": 20,
+    "name": "Set Tfaw"
+  },
+  {
+    "id": 131086,
+    "method": 6,
+    "index": 24,
+    "length": 20,
+    "name": "Set TrrdS"
+  },
+  {
+    "id": 131087,
+    "method": 6,
+    "index": 23,
+    "length": 20,
+    "name": "Set TrrdL"
+  },
+  {
+    "id": 131093,
+    "method": 6,
+    "index": 22,
+    "length": 20,
+    "name": "Set Trtp"
+  },
+  {
+    "id": 131133,
+    "method": 6,
+    "index": 21,
+    "length": 20,
+    "name": "Set TrfcSb"
+  },
+  {
+    "id": 131083,
+    "method": 6,
+    "index": 20,
+    "length": 20,
+    "name": "Set Trfc2"
+  },
+  {
+    "id": 131132,
+    "method": 6,
+    "index": 19,
+    "length": 20,
+    "name": "Set Trfc1"
+  },
+  {
+    "id": 131088,
+    "method": 6,
+    "index": 18,
+    "length": 20,
+    "name": "Set Twr"
+  },
+  {
+    "id": 131081,
+    "method": 6,
+    "index": 17,
+    "length": 20,
+    "name": "Set Trc"
+  },
+  {
+    "id": 131077,
+    "method": 6,
+    "index": 16,
+    "length": 20,
+    "name": "Set Tras"
+  },
+  {
+    "id": 131078,
+    "method": 6,
+    "index": 15,
+    "length": 20,
+    "name": "Set Trp"
+  },
+  {
+    "id": 131131,
+    "method": 6,
+    "index": 14,
+    "length": 20,
+    "name": "Set Trcd"
+  },
+  {
+    "id": 131074,
+    "method": 6,
+    "index": 13,
+    "length": 20,
+    "name": "Set Tcl"
+  },
+  {
+    "id": 131073,
+    "method": 4,
+    "index": 12,
+    "length": 412,
+    "name": "Set Mem Clock"
+  },
+  {
+    "id": 131110,
+    "method": 4,
+    "index": 11,
+    "length": 412,
+    "name": "Set SMTEn"
+  },
+  {
+    "id": 327696,
+    "method": 6,
+    "index": 10,
+    "length": 20,
+    "name": "Set GFX Curve Optimizer"
+  },
+  {
+    "id": 327690,
+    "method": 6,
+    "index": 9,
+    "length": 20,
+    "name": "Set Curve Optimizer"
+  },
+  {
+    "id": 131111,
+    "method": 6,
+    "index": 8,
+    "length": 20,
+    "name": "Software Downcore Config"
+  },
+  {
+    "id": 65544,
+    "method": 6,
+    "index": 7,
+    "length": 20,
+    "name": "Get Interlevaing Cap"
+  },
+  {
+    "id": 65543,
+    "method": 6,
+    "index": 6,
+    "length": 20,
+    "name": "Get GFX OC Frequency Max"
+  },
+  {
+    "id": 65542,
+    "method": 6,
+    "index": 5,
+    "length": 20,
+    "name": "Get GFX OC Voltage Max"
+  },
+  {
+    "id": 65541,
+    "method": 6,
+    "index": 4,
+    "length": 20,
+    "name": "Get OC Frequency Max"
+  },
+  {
+    "id": 65540,
+    "method": 6,
+    "index": 3,
+    "length": 20,
+    "name": "Get OC Voltage Max"
+  },
+  {
+    "id": 65539,
+    "method": 6,
+    "index": 2,
+    "length": 20,
+    "name": "Get OC Disable"
+  }
+]
