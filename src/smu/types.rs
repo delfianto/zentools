@@ -43,7 +43,7 @@ pub enum SmuError {
 }
 
 /// AMD CPU codename (matches ryzen_smu driver codename values)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CpuCodename {
     // Zen/Zen+ (Family 17h)
     Colfax,
@@ -276,7 +276,7 @@ impl CpuCodename {
 }
 
 /// SMU firmware version
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SmuVersion {
     pub major: u8,
     pub minor: u8,
@@ -316,7 +316,7 @@ impl std::fmt::Display for SmuVersion {
 }
 
 /// Complete SMU information from the kernel driver
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SmuInfo {
     pub version: SmuVersion,
     pub codename: CpuCodename,
@@ -327,7 +327,7 @@ pub struct SmuInfo {
 }
 
 /// Raw PM table data
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PmTableData {
     pub version: u32,
     pub data: Vec<u8>,
@@ -363,7 +363,7 @@ impl PmTableData {
 }
 
 /// Which data source provided metrics
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MetricsSource {
     /// Data from PM table via ryzen_smu driver
     PmTable,
@@ -384,7 +384,7 @@ impl std::fmt::Display for MetricsSource {
 }
 
 /// Per-core metrics
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct CoreMetrics {
     pub core_id: u32,
     pub power_w: Option<f64>,
@@ -399,7 +399,7 @@ pub struct CoreMetrics {
 }
 
 /// Unified CPU metrics from all available sources
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CpuMetrics {
     pub source: MetricsSource,
 

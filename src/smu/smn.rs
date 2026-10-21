@@ -39,6 +39,13 @@ fn read_smn_register(pci_device: &str, address: u32) -> Result<u32, SmuError> {
             reason: format!("Failed to open {}: {}", pci_device, e),
         })?;
 
+    // Coordinate index/data transactions across ZenTools CLI and GUI processes.
+    // The descriptor lock is released on every return path when `file` drops.
+    file.lock().map_err(|e| SmuError::SmnError {
+        address,
+        reason: format!("Failed to lock PCI config for SMN read: {e}"),
+    })?;
+
     // Write SMN address to index register (0x60)
     let addr_bytes = address.to_le_bytes();
     file.write_at(&addr_bytes, 0x60)

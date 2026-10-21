@@ -12,6 +12,10 @@ memory timings. Read [README.md](README.md) for usage and
 - `src/epp.rs`: EPP profiles and sysfs access.
 - `src/smu/`: hardware access, CPU identification, PM-table decoding, memory
   timings, and telemetry fallback logic; exported through `src/lib.rs`.
+- `src/aod.rs`: strict decoding of the audited getter capture; no firmware setters.
+- `src/monitor.rs`: shared sampling, versioned snapshots, comparison, helper protocol.
+- `src/bin/helper.rs`: headless helper scoped to its stdin/stdout connection.
+- `gui/`: optional CXX-Qt frontend, QML screens, preview fixtures and desktop assets.
 - `docs/`: architecture, detection, dependencies, register maps, and research
   findings. Keep every filename in this directory lowercase and update links
   when renaming files.
@@ -55,6 +59,22 @@ Documentation-only changes need filename, link, and diff checks; do not run
 hardware probes for them. Use regression tests with captured or synthetic input
 for decoding changes. Compilation, ordinary tests, and offline fixture decoding
 do not require sudo.
+
+The workspace defaults to the root CLI/helper package, so ordinary Rust checks
+need no Qt. For frontend or helper/protocol changes also run:
+
+```bash
+just check-gui          # build, Clippy, GUI tests, Qt 6 lint/format, UI smoke test
+just run-gui --demo     # optional visual review; synthetic telemetry, writes disabled
+```
+
+Set `QMAKE` to the intended Qt 6 executable. GUI recipes default to `qmake6`
+and LLD. The QML linter locates Qt tools through that executable; build the GUI
+first to refresh generated module metadata. Keep Qt dependencies out of the
+core and keep the desktop process unprivileged. Spawn `pkexec` only after an
+explicit access request; profile writes require a separate Apply action.
+Never join a worker from a QObject method that holds its Rust-state lock;
+request shutdown there and join after the event loop.
 
 `just build` creates a native release build and requires UPX. `just install`
 builds and installs the binary and symlinks; use it when installation is part

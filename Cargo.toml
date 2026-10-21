@@ -1,5 +1,11 @@
+[workspace]
+members = ["gui"]
+default-members = ["."]
+resolver = "2"
+
 [package]
 name = "zentools"
+default-run = "zentools"
 version = "0.3.0"
 edition = "2024"
 rust-version = "1.98.0"
@@ -13,15 +19,27 @@ description = "AMD Ryzen CPU management utility - EPP and SMU monitoring"
 [[bin]]
 name = "zentools"
 path = "src/main.rs"
+required-features = ["cli"]
+
+[[bin]]
+name = "zentools-helper"
+path = "src/bin/helper.rs"
+
+[features]
+default = ["cli"]
+cli = ["dep:anyhow", "dep:clap", "dep:comfy-table", "dep:ctrlc", "dep:ratatui"]
 
 [dependencies]
-anyhow = "1"
+anyhow = { version = "1", optional = true }
 byteorder = "1"
-clap = { version = "4", features = ["derive"] }
-comfy-table = "8"
-ctrlc = "3"
-ratatui = { version = "0.30.2", default-features = false, features = ["crossterm", "std"] }
+clap = { version = "4", features = ["derive"], optional = true }
+comfy-table = { version = "8", optional = true }
+ctrlc = { version = "3", optional = true }
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm", "std"], optional = true }
 thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
 
 [profile.release]
 strip = true

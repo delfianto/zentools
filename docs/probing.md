@@ -147,3 +147,21 @@ Local evidence: `/tmp/zentools-probing-20261021/`. `aod.dsl` is the disassembly,
 `frequency/` contains the pinned-core experiment, and `power/transitions.csv`
 contains the repeated power response. The checked-in AOD fixture preserves the
 81 successful responses even after temporary files are removed.
+
+## Integration into the application
+
+The audited getter protocol is now decoded in Rust (`src/aod.rs`) and exposed
+through `zentools firmware --capture <file-or-directory>` and the GUI's Memory
+page. All 81 raw codes are retained; selected electrical encodings remain
+explicitly provisional. The GUI never builds or loads the research module.
+An already loaded helper's cached results can be read only after the existing
+board/BIOS/AML checks succeed; imported captures are historical settings.
+
+`zentools capture --output <file>` and `zentools compare <before> <after>` add
+versioned idle/load comparison. Captures retain UMC registers and the exact
+PM-table bytes used to parse telemetry. Full PM words are compared only with
+matching table versions and lengths. The three power candidates and 16 clock
+candidates appear under experimental PM fields for the exact audited schema;
+they remain outside production sensor mappings.
+
+See [gui.md](gui.md) for the Qt frontend and the capture workflow.

@@ -56,3 +56,29 @@ All library functions return `Result<T, SmuError>` or `Result<T, EppError>`. The
 ## Platform Support
 
 Linux-only for hardware access (`/dev/cpu/*/msr`, PCI config space, sysfs). The code compiles on all platforms but hardware reads return errors on non-Linux. All `#[cfg(target_os = "linux")]` blocks have matching `#[cfg(not(...))]` stubs.
+
+## Qt frontend and shared capture API
+
+The optional `gui/` workspace member uses CXX-Qt 0.10 and Qt Quick/QML. Root
+`default-members` excludes it, and CLI dependencies are behind the default
+`cli` feature; the GUI uses the library without terminal dependencies.
+
+`monitor::Session` owns the readers, RAPL baseline, memory refresh cache, and
+OS utilization deltas. `Snapshot` is a versioned serializable capture with CPU
+identity, sample times, optional readings, raw UMC registers and PM-table data.
+Telemetry parsing uses the same PM table retained for comparison. `aod` imports
+and validates the audited 81-object getter protocol with explicit provenance.
+
+The frontend worker coalesces owned presentation snapshots onto the QObject's
+GUI thread. QML views bind to immutable arrays; no hardware I/O runs on the
+GUI thread. The bounded history retains 120 samples. Baselines and imported
+firmware data are owned independently of subsequent live samples.
+
+Privileged access is a separate `zentools-helper stream` process, authorized by
+`pkexec` only after an explicit user action. Its pipe protocol permits memory
+refresh, the four known EPP preferences, and shutdown. It accepts no paths,
+arbitrary addresses, firmware setters, or shell commands. EOF ends the session;
+the GUI closes stdin, stops/reaps the child and joins its reader on shutdown.
+Worker joins happen outside QObject methods to avoid their Rust-state lock.
+
+See [gui.md](gui.md) for building, usage, and current limits.

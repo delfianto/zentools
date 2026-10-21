@@ -2,26 +2,15 @@
 
 use anyhow::Result;
 use comfy_table::{Cell, CellAlignment, ContentArrangement, Table, presets::UTF8_FULL};
-use zentools::smu::{driver, mem, smn};
+use zentools::smu::{mem, smn};
 
 pub fn handle(raw: bool) -> Result<()> {
-    let smu_info = driver::read_info().ok();
-
-    let is_zen5 = smu_info
-        .as_ref()
-        .map(|i| i.codename.is_zen5())
-        .unwrap_or(false);
-
-    // Determine DDR type from CPU generation (register probing is unreliable)
-    let mem_type = if smu_info
-        .as_ref()
-        .map(|i| i.codename.is_ddr5())
-        .unwrap_or(false)
-    {
-        mem::MemType::DDR5
-    } else {
-        mem::MemType::DDR4
-    };
+    let identity = zentools::monitor::Identity::detect();
+    let is_zen5 = identity.codename.is_some_and(|c| c.is_zen5());
+    let mem_type = identity.memory_type();
+    if mem_type == mem::MemType::Unknown {
+        anyhow::bail!("CPU memory layout is unknown; refusing to assume DDR4");
+    }
 
     let smn_reader = smn::SmnReader::new(is_zen5);
     if !smn_reader.is_available() {

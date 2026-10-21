@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ZenTools
+GenericName=Ryzen hardware monitor
+Comment=CPU telemetry, memory timings, capture comparison and power profiles
+Exec=zentools-gui
+Icon=zentools
+Terminal=false
+Categories=System;Monitor;
+Keywords=AMD;Ryzen;CPU;memory;EPP;
+StartupNotify=true
