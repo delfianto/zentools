@@ -34,6 +34,25 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Show audited firmware settings from a saved capture or already loaded helper
+    Firmware {
+        #[arg(long)]
+        capture: Option<std::path::PathBuf>,
+    },
+    /// Save a versioned hardware snapshot for later comparison
+    Capture {
+        #[arg(short, long)]
+        output: std::path::PathBuf,
+        #[arg(long)]
+        aod_capture: Option<std::path::PathBuf>,
+    },
+    /// Compare two saved snapshots (including memory registers and firmware settings)
+    Compare {
+        baseline: std::path::PathBuf,
+        current: std::path::PathBuf,
+        #[arg(long)]
+        all: bool,
+    },
     /// Manage Energy Performance Preference (EPP)
     Epp {
         #[command(subcommand)]
@@ -160,6 +179,16 @@ fn run() -> Result<()> {
     }
 
     match cli.command {
+        Some(Commands::Firmware { capture }) => cmd::capture::firmware(capture.as_deref()),
+        Some(Commands::Capture {
+            output,
+            aod_capture,
+        }) => cmd::capture::save(&output, aod_capture.as_deref()),
+        Some(Commands::Compare {
+            baseline,
+            current,
+            all,
+        }) => cmd::capture::compare(&baseline, &current, all),
         Some(Commands::Epp { command }) => cmd::epp::handle_command(command),
         Some(Commands::Smu { command }) => cmd::smu::handle_command(command),
         Some(Commands::Mem { raw }) => cmd::mem::handle(raw),

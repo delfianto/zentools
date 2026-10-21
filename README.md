@@ -7,6 +7,19 @@ AMD Ryzen CPU management and monitoring tool for Linux.
 
 EPP power profile control, SMU telemetry monitoring, and DDR4/DDR5 memory timing readout in a single binary. Supports Zen 2 through Zen 5.
 
+An optional **Qt 6 / QML desktop app** adds live graphs, per-core telemetry,
+per-channel memory tables, firmware capture import, EPP profiles, and idle/load
+snapshot comparisons. The interface runs as your normal user; hardware access
+is authorized separately.
+
+```bash
+just run-gui             # build and launch (Qt 6 development packages + LLD)
+just run-gui --demo      # preview with simulated telemetry; hardware writes disabled
+just install-gui         # optional release build + user desktop launcher
+```
+
+See [the GUI guide](docs/gui.md) for dependencies and usage.
+
 ## Features
 
 | Command | What it does | Requires |
@@ -46,7 +59,7 @@ The `just install` command creates busybox-style symlinks so you can also run:
 ### Prerequisites
 
 - AMD Ryzen CPU (Zen 2 or newer)
-- Rust 1.85+ (edition 2024)
+- Rust 1.98+ (edition 2024)
 - Linux with root access
 - `amd-pstate` driver in active mode (for EPP)
 - [`ryzen_smu`](https://github.com/amkillam/ryzen_smu) kernel module (for SMU features, optional for basic monitoring)
@@ -101,6 +114,7 @@ sudo zen smu check
 | [docs/pmtable.md](docs/pmtable.md) | PM table versions, field offset maps, reverse engineering guide |
 | [docs/memory.md](docs/memory.md) | UMC register map, DDR4/DDR5 differences, timing parameters |
 | [docs/probing.md](docs/probing.md) | AOD firmware getters, electrical settings, frequency and power experiments |
+| [docs/gui.md](docs/gui.md) | Desktop app setup, EPP profiles, capture comparison and Qt architecture |
 | [docs/dependencies.md](docs/dependencies.md) | Crate dependencies, system requirements, build profile |
 
 ## Development

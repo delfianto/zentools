@@ -25,13 +25,24 @@ pub fn read_metrics(
     rapl: Option<&mut msr::RaplReader>,
     cpufreq_reader: Option<&cpufreq::CpuFreqReader>,
 ) -> CpuMetrics {
+    let table = driver::read_pm_table(true).ok();
+    read_metrics_with_pm(smn_reader, rapl, cpufreq_reader, table.as_ref())
+}
+
+/// Merge direct readings with the exact PM table retained in a capture.
+pub fn read_metrics_with_pm(
+    smn_reader: Option<&smn::SmnReader>,
+    rapl: Option<&mut msr::RaplReader>,
+    cpufreq_reader: Option<&cpufreq::CpuFreqReader>,
+    table: Option<&PmTableData>,
+) -> CpuMetrics {
     let mut metrics = CpuMetrics::default();
     let mut used_pmtable = false;
     let mut used_direct = false;
 
     // Tier 2: Try PM table via ryzen_smu driver
-    if let Ok(pm_data) = driver::read_pm_table(true) {
-        let pm_metrics = pmtable::parse_pm_table(&pm_data);
+    if let Some(pm_data) = table {
+        let pm_metrics = pmtable::parse_pm_table(pm_data);
         metrics = pm_metrics;
         used_pmtable = true;
     }

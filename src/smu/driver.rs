@@ -359,7 +359,7 @@ pub fn read_cpu_topology() -> Option<CpuTopology> {
 }
 
 /// CPU topology information
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CpuTopology {
     pub logical_cpus: u32,
     pub physical_cores: u32,

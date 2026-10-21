@@ -46,11 +46,35 @@ const EXTRA_TIMING_REGS: &[u32] = &[0x5021C, 0x50234, 0x50238, 0x50250, 0x50254,
 /// None indicates a failed read, rather than a hardware value of zero.
 pub type MemRegisters = BTreeMap<u32, Option<u32>>;
 
+/// Decode a captured channel without touching hardware. Missing required registers stay errors.
+pub fn decode_registers(registers: &MemRegisters, kind: MemType) -> Result<MemTimings, SmuError> {
+    if kind == MemType::Unknown {
+        return Err(SmuError::ParseError {
+            path: "UMC capture".into(),
+            reason: "unknown DDR layout".into(),
+        });
+    }
+    read_channel_timings(
+        |address| {
+            registers
+                .get(&address)
+                .copied()
+                .flatten()
+                .ok_or_else(|| SmuError::SmnError {
+                    address,
+                    reason: "register missing from capture".into(),
+                })
+        },
+        kind,
+    )
+    .map(|(timings, _)| timings)
+}
+
 /// Maximum channels to probe (2 for desktop, 4 for HEDT, 8 for server)
 const MAX_CHANNELS: u32 = 8;
 
 /// Memory type detected
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum MemType {
     DDR4,
     DDR5,
@@ -68,7 +92,7 @@ impl std::fmt::Display for MemType {
 }
 
 /// Memory timing parameters for one channel
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct MemTimings {
     // Config
     pub mem_type: Option<MemType>,
@@ -137,7 +161,7 @@ pub struct MemTimings {
 }
 
 /// Information about a memory channel
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MemChannel {
     pub channel_id: u32,
     pub dimm0_present: bool,
@@ -147,7 +171,7 @@ pub struct MemChannel {
 }
 
 /// Complete memory configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MemConfig {
     pub mem_type: MemType,
     pub channels: Vec<MemChannel>,
@@ -156,6 +180,12 @@ pub struct MemConfig {
 /// Read memory configuration from UMC registers via SMN.
 /// `mem_type` should be determined from the CPU generation (Zen 4/5 = DDR5, older = DDR4).
 pub fn read_mem_config(smn: &SmnReader, mem_type: MemType) -> Result<MemConfig, SmuError> {
+    if mem_type == MemType::Unknown {
+        return Err(SmuError::ParseError {
+            path: "UMC".into(),
+            reason: "CPU memory layout is unknown".into(),
+        });
+    }
     let mut channels = Vec::new();
 
     for ch in 0..MAX_CHANNELS {
@@ -163,8 +193,8 @@ pub fn read_mem_config(smn: &SmnReader, mem_type: MemType) -> Result<MemConfig, 
 
         // Check if channel is enabled (bit 19: 0=enabled, 1=disabled)
         let ch_reg = match smn.read_register(base | UMC_CH_ENABLED) {
-            Ok(v) => v,
-            Err(_) => break,
+            Ok(v) if v != u32::MAX => v,
+            _ => break,
         };
         if (ch_reg >> 19) & 1 != 0 {
             continue;
@@ -197,16 +227,32 @@ pub fn read_mem_config(smn: &SmnReader, mem_type: MemType) -> Result<MemConfig, 
 /// the DDR4 addresses (0x50000/0x50008) report presence even for DDR5 DIMMs.
 fn detect_dimms(smn: &SmnReader, base: u32, _mem_type: MemType) -> (bool, bool) {
     // Try DDR4 addresses first (work on all platforms including Zen 5 DDR5)
-    let d4_0 = smn.read_register(base | DDR4_DIMM0_ADDR).unwrap_or(0);
-    let d4_1 = smn.read_register(base | DDR4_DIMM1_ADDR).unwrap_or(0);
+    let d4_0 = smn
+        .read_register(base | DDR4_DIMM0_ADDR)
+        .ok()
+        .filter(|v| *v != u32::MAX)
+        .unwrap_or(0);
+    let d4_1 = smn
+        .read_register(base | DDR4_DIMM1_ADDR)
+        .ok()
+        .filter(|v| *v != u32::MAX)
+        .unwrap_or(0);
 
     if (d4_0 & 1) != 0 || (d4_1 & 1) != 0 {
         return ((d4_0 & 1) != 0, (d4_1 & 1) != 0);
     }
 
     // Fallback: try DDR5 addresses
-    let d5_0 = smn.read_register(base | DDR5_DIMM0_ADDR).unwrap_or(0);
-    let d5_1 = smn.read_register(base | DDR5_DIMM1_ADDR).unwrap_or(0);
+    let d5_0 = smn
+        .read_register(base | DDR5_DIMM0_ADDR)
+        .ok()
+        .filter(|v| *v != u32::MAX)
+        .unwrap_or(0);
+    let d5_1 = smn
+        .read_register(base | DDR5_DIMM1_ADDR)
+        .ok()
+        .filter(|v| *v != u32::MAX)
+        .unwrap_or(0);
 
     ((d5_0 & 1) != 0, (d5_1 & 1) != 0)
 }

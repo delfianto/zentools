@@ -351,3 +351,30 @@ lint-c:
 
 # Check both research-tool languages without loading the kernel helper.
 lint-tools: lint-python lint-c
+
+# ===========================================================================
+# EXCEPTIONS — optional Qt 6 frontend (the default CLI gate needs no Qt)
+# ===========================================================================
+
+# Build both the normal-user GUI and its headless hardware helper.
+build-gui *args:
+    QMAKE="${QMAKE:-qmake6}" RUSTFLAGS="${RUSTFLAGS:--C link-arg=-fuse-ld=lld}" cargo build -p zentools-gui -p zentools --no-default-features --bin zentools-gui --bin zentools-helper {{args}}
+
+# Launch the GUI; --demo previews without reading or changing hardware.
+run-gui *args: build-gui
+    ./target/debug/zentools-gui {{args}}
+
+# Check Rust, QML formatting/types, fixture presentation, and UI interactions.
+check-gui: build-gui
+    QMAKE="${QMAKE:-qmake6}" RUSTFLAGS="${RUSTFLAGS:--C link-arg=-fuse-ld=lld}" cargo clippy -p zentools-gui --all-targets -- -D warnings
+    QMAKE="${QMAKE:-qmake6}" RUSTFLAGS="${RUSTFLAGS:--C link-arg=-fuse-ld=lld}" cargo test -p zentools-gui
+    bash gui/check-qml.sh
+    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 25s ./target/debug/zentools-gui --smoke-test
+
+# Install a release GUI, helper, and desktop entry for the current user.
+install-gui:
+    just build-gui --release
+    install -Dm755 target/release/zentools-gui "${HOME}/.local/bin/zentools-gui"
+    install -Dm755 target/release/zentools-helper "${HOME}/.local/bin/zentools-helper"
+    install -Dm644 gui/zentools.desktop "${HOME}/.local/share/applications/zentools.desktop"
+    install -Dm644 gui/zentools.svg "${HOME}/.local/share/icons/hicolor/scalable/apps/zentools.svg"

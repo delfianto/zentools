@@ -1,0 +1,36 @@
+name: gui
+
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'gui/**', 'Cargo.*', 'justfile', '.github/workflows/gui.yml']
+  pull_request:
+    paths: ['src/**', 'gui/**', 'Cargo.*', 'justfile', '.github/workflows/gui.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: gui-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gui:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: extractions/setup-just@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lld libgl1-mesa-dev libxkbcommon-x11-0 libxcb-cursor0 fonts-inter
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.12.0'
+          cache: true
+      - uses: Swatinem/rust-cache@v2
+      - name: Qt frontend checks
+        run: |
+          export QMAKE="$QT_ROOT_DIR/bin/qmake"
+          just check-gui

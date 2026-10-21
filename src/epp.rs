@@ -3,7 +3,7 @@
 //! Reads and writes AMD EPP settings through the Linux sysfs interface.
 
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use thiserror::Error;
@@ -25,10 +25,13 @@ pub enum EppError {
 
     #[error("Invalid EPP value: {0}")]
     InvalidEppValue(String),
+
+    #[error("EPP change failed: {reason}. Rollback: {rollback}")]
+    ApplyFailed { reason: String, rollback: String },
 }
 
 /// AMD EPP profile values
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EppProfile {
     /// Prioritizes performance above power saving
     Performance,
@@ -167,36 +170,53 @@ impl EppManager {
 
     /// Apply EPP profile to all CPUs
     pub fn apply_profile(&self, profile: EppProfile) -> Result<(), EppError> {
-        let profile_str = format!("{}\n", profile.as_str());
-
-        for path in &self.epp_paths {
-            let mut file = fs::OpenOptions::new().write(true).open(path).map_err(|e| {
-                if e.kind() == io::ErrorKind::PermissionDenied {
-                    EppError::PermissionDenied {
-                        path: path.display().to_string(),
-                        source: e,
-                    }
-                } else {
-                    EppError::IoError {
-                        path: path.display().to_string(),
-                        source: e,
-                    }
+        let originals = self.read_all()?;
+        // Open every destination before changing any CPU. Permission failures do not
+        // leave an already modified prefix of the system behind.
+        let mut files = std::collections::BTreeMap::new();
+        for info in &originals {
+            let available = info
+                .path
+                .with_file_name("energy_performance_available_preferences");
+            if available.exists() {
+                let values =
+                    fs::read_to_string(&available).map_err(|source| EppError::IoError {
+                        path: available.display().to_string(),
+                        source,
+                    })?;
+                if !values.split_whitespace().any(|v| v == profile.as_str()) {
+                    return Err(EppError::InvalidEppValue(format!(
+                        "{} is unavailable on CPU {}",
+                        profile.as_str(),
+                        info.cpu_num
+                    )));
                 }
-            })?;
-
-            file.write_all(profile_str.as_bytes())
-                .map_err(|e| EppError::IoError {
-                    path: path.display().to_string(),
-                    source: e,
+            }
+            let file = fs::OpenOptions::new()
+                .write(true)
+                .open(&info.path)
+                .map_err(|source| EppError::IoError {
+                    path: info.path.display().to_string(),
+                    source,
                 })?;
-
-            file.flush().map_err(|e| EppError::IoError {
-                path: path.display().to_string(),
-                source: e,
-            })?;
+            files.insert(info.cpu_num, file);
         }
-
-        Ok(())
+        let old: Vec<_> = originals.iter().map(|i| (i.cpu_num, i.profile)).collect();
+        transition_profiles(
+            &old,
+            profile,
+            |cpu, value| {
+                let file = files.get_mut(&cpu).expect("preflighted EPP file");
+                file.seek(SeekFrom::Start(0))
+                    .and_then(|_| file.write_all(format!("{}\n", value.as_str()).as_bytes()))
+                    .and_then(|_| file.flush())
+                    .map_err(|source| EppError::IoError {
+                        path: format!("CPU {cpu} EPP"),
+                        source,
+                    })
+            },
+            |cpu| self.read_cpu(cpu),
+        )
     }
 
     /// Read current EPP settings for all CPUs
@@ -255,6 +275,52 @@ impl EppManager {
     }
 }
 
+/// Verify each write and restore original per-CPU values if any write/readback fails.
+fn transition_profiles(
+    originals: &[(u32, EppProfile)],
+    target: EppProfile,
+    mut write: impl FnMut(u32, EppProfile) -> Result<(), EppError>,
+    mut read: impl FnMut(u32) -> Result<EppProfile, EppError>,
+) -> Result<(), EppError> {
+    for (index, &(cpu, _)) in originals.iter().enumerate() {
+        let result = write(cpu, target).and_then(|_| {
+            if read(cpu)? == target {
+                Ok(())
+            } else {
+                Err(EppError::InvalidEppValue(format!(
+                    "CPU {cpu} readback differs"
+                )))
+            }
+        });
+        if let Err(error) = result {
+            let mut failures = Vec::new();
+            for &(cpu, original) in &originals[..=index] {
+                let restored = write(cpu, original).and_then(|_| {
+                    if read(cpu)? == original {
+                        Ok(())
+                    } else {
+                        Err(EppError::InvalidEppValue(format!(
+                            "CPU {cpu} rollback readback differs"
+                        )))
+                    }
+                });
+                if let Err(e) = restored {
+                    failures.push(e.to_string());
+                }
+            }
+            return Err(EppError::ApplyFailed {
+                reason: error.to_string(),
+                rollback: if failures.is_empty() {
+                    "original values restored and verified".into()
+                } else {
+                    format!("incomplete: {}", failures.join("; "))
+                },
+            });
+        }
+    }
+    Ok(())
+}
+
 /// Extract CPU number from sysfs EPP path
 fn extract_cpu_number(path: &Path) -> Result<u32, EppError> {
     path.parent()
@@ -270,6 +336,50 @@ fn extract_cpu_number(path: &Path) -> Result<u32, EppError> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn failed_write_restores_and_verifies_original_per_cpu_profiles() {
+        use std::{cell::RefCell, collections::BTreeMap};
+        let originals = [
+            (0, EppProfile::Power),
+            (1, EppProfile::BalancePower),
+            (2, EppProfile::Performance),
+        ];
+        let values = RefCell::new(BTreeMap::from(originals));
+        let mut failed = false;
+        let result = transition_profiles(
+            &originals,
+            EppProfile::Performance,
+            |cpu, profile| {
+                values.borrow_mut().insert(cpu, profile);
+                if cpu == 1 && !failed {
+                    failed = true;
+                    Err(EppError::InvalidEppValue("injected write failure".into()))
+                } else {
+                    Ok(())
+                }
+            },
+            |cpu| Ok(values.borrow()[&cpu]),
+        );
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("original values restored and verified")
+        );
+        assert_eq!(*values.borrow(), BTreeMap::from(originals));
+    }
+
+    #[test]
+    fn failed_rollback_is_reported_as_incomplete() {
+        let result = transition_profiles(
+            &[(0, EppProfile::Power)],
+            EppProfile::Performance,
+            |_, _| Err(EppError::InvalidEppValue("write denied".into())),
+            |_| Ok(EppProfile::Power),
+        );
+        assert!(result.unwrap_err().to_string().contains("incomplete"));
+    }
 
     // =========================================================================
     // EppProfile::as_str
