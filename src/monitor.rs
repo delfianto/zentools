@@ -520,7 +520,13 @@ pub fn cached_firmware() -> Result<AodCapture, String> {
         .filter_map(Result::ok)
         .filter(|e| e.file_name().to_string_lossy().starts_with("SSDT"))
         .filter_map(|e| fs::read(e.path()).ok())
-        .any(|bytes| format!("{:x}", Sha256::digest(&bytes)) == aod::AUDITED_HASH);
+        .any(|bytes| {
+            Sha256::digest(&bytes)
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+                == aod::AUDITED_HASH
+        });
     if !audited {
         return Err("AOD AML differs from the audited profile".into());
     }
