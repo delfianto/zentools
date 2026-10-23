@@ -22,7 +22,7 @@ Panel {
             Text {
                 text: card.title
                 color: "#526278"
-                font.pixelSize: 12
+                font.pixelSize: 17
                 font.weight: Font.Medium
                 Layout.fillWidth: true
             }
@@ -38,14 +38,14 @@ Panel {
             Text {
                 text: card.reading.display
                 color: "#152235"
-                font.pixelSize: 32
+                font.pixelSize: 45
                 font.weight: Font.DemiBold
                 font.family: "Inter"
             }
             Text {
                 text: card.reading.value === null ? "" : card.reading.unit
                 color: "#708097"
-                font.pixelSize: 15
+                font.pixelSize: 21
                 Layout.alignment: Qt.AlignBottom
                 Layout.bottomMargin: 4
             }
@@ -56,7 +56,7 @@ Panel {
         Text {
             text: card.reading.detail
             color: "#7c8999"
-            font.pixelSize: 10
+            font.pixelSize: 14
             elide: Text.ElideRight
             Layout.fillWidth: true
         }

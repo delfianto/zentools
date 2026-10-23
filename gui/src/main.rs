@@ -1,5 +1,6 @@
 mod backend;
 mod demo;
+mod hardware;
 mod view;
 mod worker;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};

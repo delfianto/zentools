@@ -19,20 +19,72 @@ just install-gui         # release binaries and desktop launcher in ~/.local
 ```
 
 On Arch/CachyOS, the relevant packages are `qt6-base`, `qt6-declarative`,
-`lld`, and a C++ toolchain. The desktop authorization action uses `pkexec`
-from polkit and the desktop's authentication agent. Qt runtime plugins must
-also be present on machines where the app is deployed.
+`lld`, and a C++ toolchain. Without the optional system service, the desktop
+authorization action uses `pkexec` from polkit and the desktop's authentication
+agent. Qt runtime plugins must also be present on machines where the app is
+deployed.
 
 Set `QMAKE=/path/to/qt6/bin/qmake` to select a particular Qt installation. The
 recipes default to `qmake6` and use LLD unless `RUSTFLAGS` is already set.
-Both binaries must be adjacent: `zentools-gui` and `zentools-helper`.
+For the `pkexec` fallback, both binaries must be adjacent: `zentools-gui` and
+`zentools-helper`. The system service uses its own root-owned helper installation.
 
 Do not launch the GUI with sudo. It opens as your desktop user, initially with
-whatever sensors are readable. **Enable hardware access** starts the headless
+whatever sensors are readable. **Enable hardware access** connects to the
+system service if its socket is installed; otherwise it starts the headless
 helper through the system authorization dialog. Cancelling leaves ordinary
-monitoring available; **Disconnect hardware** ends that helper session.
+monitoring available; **Disconnect hardware** ends only that helper session.
 Neither action changes EPP. Selecting a profile and clicking **Apply profile**
 is a separate operation.
+
+## System service and IPC
+
+The optional systemd socket service keeps hardware privileges out of the desktop
+process and avoids an authentication dialog on each connection. Install it once:
+
+```bash
+just install-service
+sudo usermod -aG zentools "$USER"
+sudo systemctl enable --now zentools.socket
+```
+
+Log out and back in after joining the group, then rebuild/restart the GUI
+(`just run-gui`, or `just install-gui` for the desktop launcher). The service
+does not require the user-installed helper alongside the GUI. Installation
+copies the Qt-free helper to `/usr/local/libexec/zentools-helper` and the units
+to `/etc/systemd/system`. It does not enable the socket or change group
+membership automatically.
+
+The socket at `/run/zentools/helper.sock` is owned by `root:zentools` with mode
+`0660`. Membership grants access to telemetry, memory refresh and the four
+allowlisted EPP profile commands. Connecting and sampling do not change a
+profile; **Apply profile** sends that separate command. No arbitrary paths,
+register addresses, shell commands or firmware setters are accepted.
+
+Systemd listens in the background and starts a small root helper per connection
+using `Accept=yes` and `StandardInput=socket`. Each helper owns its sampling
+state, runs while the client is connected and exits on EOF. Disconnecting one
+client leaves the socket and other clients running. This reuses the bounded,
+newline-delimited JSON protocol over a local Unix stream socket; neither a
+privileged Qt process nor a custom listener/event loop is needed. See the
+[systemd socket documentation](https://www.freedesktop.org/software/systemd/man/latest/systemd.socket.html).
+
+The units restrict filesystem changes under `/usr`, `/etc` and `/boot`, hide
+home directories and prevent privilege escalation. They retain access to
+`/dev/cpu/*/msr` and writable PCI config for SMN address selection, plus sysfs
+for the explicit EPP action. They do not load kernel modules.
+
+If the socket exists but connection fails, the GUI reports the socket error
+rather than opening an unexpected authorization dialog. Check membership with
+`id -nG`, socket status with `systemctl status zentools.socket`, and session
+errors with `journalctl -u 'zentools@*'`. Without a socket, helper startup errors
+now include the actual `pkexec`/helper diagnostic instead of treating every
+failure as cancelled authorization. A missing desktop authentication agent,
+denied authorization, or helper execution failure can therefore be distinguished.
+
+To stop accepting connections, run `sudo systemctl disable --now zentools.socket`.
+Existing sessions finish when their clients disconnect; to stop them immediately,
+also run `sudo systemctl stop 'zentools@*.service'`.
 
 ## Screens
 
@@ -123,14 +175,16 @@ flowchart LR
     Views[Qt Quick pages] <--> Adapter[CXX-Qt adapter]
     Adapter <--> Worker[Rust worker]
     Worker <--> Local[Unprivileged Session]
-    Worker <-->|Authorized pipes| Helper[Headless helper]
+    Worker <-->|Unix socket or authorized pipes| Helper[Headless helper]
     Helper <--> Hardware[ZenTools hardware library]
 ```
 
 The helper accepts only memory refresh, allowlisted EPP preferences, and
 shutdown. It accepts no client-supplied paths or arbitrary addresses. EOF
-ends its session. Window closure requests cancellation; the main function
-joins workers outside QObject methods, then drops the engine. This avoids
+ends its session. Socket access is checked through filesystem group permissions;
+the fallback pipe connection is authorized through polkit. Window closure
+requests cancellation; the main function joins workers outside QObject methods,
+then drops the engine. This avoids
 joining a thread while holding the QObject's Rust-state lock.
 
 SMN transactions use an advisory lock on the PCI config descriptor so cooperating

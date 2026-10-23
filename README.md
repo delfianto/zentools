@@ -18,7 +18,8 @@ just run-gui --demo      # preview with simulated telemetry; hardware writes dis
 just install-gui         # optional release build + user desktop launcher
 ```
 
-See [the GUI guide](docs/gui.md) for dependencies and usage.
+See [the GUI guide](docs/gui.md) for dependencies and usage, including the
+optional [system service with Unix socket IPC](docs/gui.md#system-service-and-ipc).
 
 ## Features
 

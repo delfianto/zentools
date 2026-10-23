@@ -1,0 +1,15 @@
+[Unit]
+Description=ZenTools hardware access socket
+
+[Socket]
+ListenStream=/run/zentools/helper.sock
+SocketUser=root
+SocketGroup=zentools
+SocketMode=0660
+DirectoryMode=0755
+Accept=yes
+MaxConnections=8
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

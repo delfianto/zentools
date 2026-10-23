@@ -1,0 +1,21 @@
+[Unit]
+Description=ZenTools hardware session
+CollectMode=inactive-or-failed
+
+[Service]
+Type=exec
+User=root
+ExecStart=/usr/local/libexec/zentools-helper stream
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+TimeoutStopSec=5s
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# PCI SMN index selection needs writable PCI config; MSR reads need /dev/cpu.
+# Do not enable ProtectKernelTunables or PrivateDevices here.

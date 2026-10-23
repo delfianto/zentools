@@ -72,19 +72,19 @@ ScrollView {
                     Text {
                         text: "BASELINE"
                         color: "#98a5b4"
-                        font.pixelSize: 9
+                        font.pixelSize: 13
                         font.letterSpacing: 1.3
                     }
                     Text {
                         text: capturesScroll.viewState.baseline.loaded ? capturesScroll.dateText(capturesScroll.viewState.baseline.timestamp) : "No baseline captured"
                         color: "#415b72"
-                        font.pixelSize: 16
+                        font.pixelSize: 22
                         font.weight: Font.DemiBold
                     }
                     Text {
                         text: capturesScroll.viewState.baseline.loaded ? "Preserved until you capture or open another baseline" : "Capture the current reading before starting your workload"
                         color: "#8f9cab"
-                        font.pixelSize: 10
+                        font.pixelSize: 14
                     }
                 }
             }
@@ -98,19 +98,19 @@ ScrollView {
                     Text {
                         text: "CURRENT SAMPLE"
                         color: "#98a5b4"
-                        font.pixelSize: 9
+                        font.pixelSize: 13
                         font.letterSpacing: 1.3
                     }
                     Text {
                         text: capturesScroll.dateText(capturesScroll.viewState.timestamp)
                         color: "#415b72"
-                        font.pixelSize: 16
+                        font.pixelSize: 22
                         font.weight: Font.DemiBold
                     }
                     Text {
                         text: capturesScroll.viewState.baseline.loaded ? capturesScroll.viewState.differences.filter(row => row.changed).length + " changed / " + capturesScroll.viewState.differences.length + " compared fields" : "Includes memory registers, firmware settings and raw PM-table words"
                         color: "#8f9cab"
-                        font.pixelSize: 10
+                        font.pixelSize: 14
                     }
                 }
             }
@@ -128,7 +128,7 @@ ScrollView {
             Layout.leftMargin: 30
             text: capturesScroll.viewState.compareError || ""
             color: "#a1493b"
-            font.pixelSize: 12
+            font.pixelSize: 17
         }
         Panel {
             visible: capturesScroll.viewState.baseline.loaded
@@ -149,7 +149,7 @@ ScrollView {
                     Text {
                         text: "Field comparison"
                         color: "#30485e"
-                        font.pixelSize: 14
+                        font.pixelSize: 20
                         font.weight: Font.DemiBold
                         Layout.fillWidth: true
                     }
@@ -157,20 +157,20 @@ ScrollView {
                         placeholderText: "Filter name or address"
                         onTextChanged: capturesScroll.comparisonFilter = text
                         implicitWidth: 190
-                        font.pixelSize: 11
+                        font.pixelSize: 15
                     }
                     ComboBox {
                         model: capturesScroll.categories
                         currentIndex: capturesScroll.comparisonCategory
                         onActivated: capturesScroll.comparisonCategory = currentIndex
                         implicitWidth: 170
-                        font.pixelSize: 11
+                        font.pixelSize: 15
                     }
                     CheckBox {
                         text: "Changes only"
                         checked: capturesScroll.onlyChanges
                         onToggled: capturesScroll.onlyChanges = checked
-                        font.pixelSize: 11
+                        font.pixelSize: 15
                     }
                 }
                 RowLayout {
@@ -178,21 +178,21 @@ ScrollView {
                     Text {
                         text: "FIELD"
                         color: "#94a0b0"
-                        font.pixelSize: 9
+                        font.pixelSize: 13
                         font.letterSpacing: 1
                         Layout.fillWidth: true
                     }
                     Text {
                         text: "BASELINE"
                         color: "#94a0b0"
-                        font.pixelSize: 9
+                        font.pixelSize: 13
                         font.letterSpacing: 1
                         Layout.preferredWidth: 190
                     }
                     Text {
                         text: "CURRENT"
                         color: "#94a0b0"
-                        font.pixelSize: 9
+                        font.pixelSize: 13
                         font.letterSpacing: 1
                         Layout.preferredWidth: 190
                     }
@@ -223,19 +223,19 @@ ScrollView {
                                 Text {
                                     text: comparisonRow.modelData.name
                                     color: "#516b81"
-                                    font.pixelSize: 11
+                                    font.pixelSize: 15
                                 }
                                 Text {
                                     text: comparisonRow.modelData.category
                                     color: "#a5b0bd"
-                                    font.pixelSize: 8
+                                    font.pixelSize: 11
                                 }
                             }
                             Text {
                                 text: comparisonRow.modelData.before
                                 color: "#8b9aaa"
                                 font.family: "monospace"
-                                font.pixelSize: 11
+                                font.pixelSize: 15
                                 Layout.preferredWidth: 190
                                 elide: Text.ElideRight
                             }
@@ -243,7 +243,7 @@ ScrollView {
                                 text: comparisonRow.modelData.after
                                 color: comparisonRow.modelData.changed ? "#088674" : "#60778e"
                                 font.family: "monospace"
-                                font.pixelSize: 11
+                                font.pixelSize: 15
                                 font.weight: Font.Medium
                                 Layout.preferredWidth: 190
                                 elide: Text.ElideRight
@@ -255,7 +255,7 @@ ScrollView {
                         visible: capturesScroll.differences.length === 0
                         text: "No differences match this view."
                         color: "#8a97a7"
-                        font.pixelSize: 12
+                        font.pixelSize: 17
                     }
                 }
             }
@@ -266,7 +266,7 @@ ScrollView {
             Layout.rightMargin: 30
             text: "Raw words are compared only when PM-table version and size match. An unchanged timing table during CPU load is expected; a changed value does not establish its meaning."
             color: "#91a0b0"
-            font.pixelSize: 11
+            font.pixelSize: 15
             wrapMode: Text.Wrap
         }
         Item {

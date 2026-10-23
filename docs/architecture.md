@@ -74,11 +74,19 @@ GUI thread. QML views bind to immutable arrays; no hardware I/O runs on the
 GUI thread. The bounded history retains 120 samples. Baselines and imported
 firmware data are owned independently of subsequent live samples.
 
-Privileged access is a separate `zentools-helper stream` process, authorized by
-`pkexec` only after an explicit user action. Its pipe protocol permits memory
-refresh, the four known EPP preferences, and shutdown. It accepts no paths,
+Privileged access is a separate `zentools-helper stream` process. After an
+explicit user action the GUI first connects to `/run/zentools/helper.sock`;
+when that socket is absent it starts the helper through `pkexec`. The optional
+systemd socket is restricted to `root:zentools` (`0660`), and starts one root
+helper per client with the accepted socket on stdin/stdout. The system helper
+is installed in a root-owned location separately from the unprivileged GUI.
+Its bounded JSON protocol permits memory refresh, the four known EPP
+preferences, and shutdown. It accepts no paths,
 arbitrary addresses, firmware setters, or shell commands. EOF ends the session;
-the GUI closes stdin, stops/reaps the child and joins its reader on shutdown.
+the GUI shuts down the socket or closes stdin, stops/reaps its own child when
+using polkit, and joins its reader on shutdown. Other service sessions and the
+systemd listener are unaffected. Helper startup diagnostics are retained for
+display instead of reporting every failure as cancelled authorization.
 Worker joins happen outside QObject methods to avoid their Rust-state lock.
 
 See [gui.md](gui.md) for building, usage, and current limits.

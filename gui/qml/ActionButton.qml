@@ -9,7 +9,7 @@ Button {
     implicitHeight: 38
     leftPadding: 15
     rightPadding: 15
-    font.pixelSize: 12
+    font.pixelSize: 17
     font.weight: Font.DemiBold
     hoverEnabled: true
     contentItem: Text {

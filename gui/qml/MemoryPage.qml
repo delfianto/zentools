@@ -40,7 +40,7 @@ ScrollView {
             Text {
                 text: memoryScroll.viewState.memoryTimestamp ? "Read at " + memoryScroll.timeText(memoryScroll.viewState.memoryTimestamp) : "No memory capture"
                 color: "#8997a7"
-                font.pixelSize: 11
+                font.pixelSize: 15
                 Layout.fillWidth: true
             }
             ActionButton {
@@ -80,13 +80,13 @@ ScrollView {
                     Text {
                         text: memoryScroll.channel ? memoryScroll.channel.speed : "N/A"
                         color: "#1d3144"
-                        font.pixelSize: 30
+                        font.pixelSize: 42
                         font.weight: Font.DemiBold
                     }
                     Text {
                         text: "MT/s"
                         color: "#8796a6"
-                        font.pixelSize: 13
+                        font.pixelSize: 18
                     }
                     Item {
                         Layout.fillWidth: true
@@ -96,13 +96,13 @@ ScrollView {
                         Text {
                             text: "PRIMARY TIMINGS"
                             color: "#8b98a7"
-                            font.pixelSize: 9
+                            font.pixelSize: 13
                             font.letterSpacing: 1.2
                         }
                         Text {
                             text: memoryScroll.channel ? memoryScroll.channel.primaries : "N/A"
                             color: "#30445a"
-                            font.pixelSize: 21
+                            font.pixelSize: 29
                             font.weight: Font.DemiBold
                         }
                     }
@@ -141,12 +141,12 @@ ScrollView {
                             Text {
                                 text: dataDelegate4.modelData.name
                                 color: "#8b98a7"
-                                font.pixelSize: 10
+                                font.pixelSize: 14
                             }
                             Text {
                                 text: dataDelegate4.modelData.value
                                 color: "#3c5267"
-                                font.pixelSize: 11
+                                font.pixelSize: 15
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -183,14 +183,14 @@ ScrollView {
                             Text {
                                 text: timingGroup.modelData.title
                                 color: "#263a4e"
-                                font.pixelSize: 13
+                                font.pixelSize: 18
                                 font.weight: Font.DemiBold
                                 Layout.fillWidth: true
                             }
                             Text {
                                 text: "CYCLES"
                                 color: "#98a3b0"
-                                font.pixelSize: 8
+                                font.pixelSize: 11
                                 font.letterSpacing: 1
                             }
                         }
@@ -212,7 +212,7 @@ ScrollView {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: dataDelegate6.modelData.name
                                     color: "#718096"
-                                    font.pixelSize: 11
+                                    font.pixelSize: 15
                                 }
                                 Text {
                                     anchors.right: parent.right
@@ -220,7 +220,7 @@ ScrollView {
                                     text: dataDelegate6.modelData.value
                                     color: dataDelegate6.modelData.value === "N/A" ? "#a2adba" : "#2d4359"
                                     font.family: "monospace"
-                                    font.pixelSize: 12
+                                    font.pixelSize: 17
                                     font.weight: Font.Medium
                                 }
                             }
@@ -246,7 +246,7 @@ ScrollView {
                     Text {
                         text: "Firmware settings"
                         color: "#263a4e"
-                        font.pixelSize: 14
+                        font.pixelSize: 20
                         font.weight: Font.DemiBold
                         Layout.fillWidth: true
                     }
@@ -258,7 +258,7 @@ ScrollView {
                 Text {
                     text: memoryScroll.viewState.firmware.loaded ? memoryScroll.viewState.firmware.source : "Import the aod-getters.txt file produced by the audited AOD probe to see electrical settings."
                     color: "#8a97a7"
-                    font.pixelSize: 11
+                    font.pixelSize: 15
                     wrapMode: Text.Wrap
                     Layout.fillWidth: true
                 }
@@ -266,7 +266,7 @@ ScrollView {
                     visible: memoryScroll.viewState.firmware.loaded
                     text: "Electrical decoding is provisional. These are firmware settings, not live voltage measurements."
                     color: "#b18441"
-                    font.pixelSize: 10
+                    font.pixelSize: 14
                     wrapMode: Text.Wrap
                     Layout.fillWidth: true
                 }
@@ -274,7 +274,7 @@ ScrollView {
                     visible: memoryScroll.viewState.firmware.loaded
                     text: memoryScroll.viewState.firmware.metadataMatches ? "Board / BIOS / AML metadata matches the audited profile." : "No matching board / BIOS / AML metadata was supplied with this historical capture."
                     color: "#8a97a7"
-                    font.pixelSize: 10
+                    font.pixelSize: 14
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                 }
@@ -283,7 +283,7 @@ ScrollView {
                     text: "Show all " + memoryScroll.viewState.firmware.rows.length + " firmware objects"
                     checked: memoryScroll.showAllFirmware
                     onToggled: memoryScroll.showAllFirmware = checked
-                    font.pixelSize: 11
+                    font.pixelSize: 15
                 }
                 Repeater {
                     model: memoryScroll.viewState.firmware.rows.filter(row => memoryScroll.showAllFirmware || row.electrical)
@@ -302,7 +302,7 @@ ScrollView {
                             Text {
                                 text: fwRow.modelData.name
                                 color: "#6c7f93"
-                                font.pixelSize: 11
+                                font.pixelSize: 15
                                 Layout.fillWidth: true
                                 Layout.preferredWidth: 220
                                 elide: Text.ElideRight
@@ -310,20 +310,20 @@ ScrollView {
                             Text {
                                 text: fwRow.modelData.value
                                 color: "#344e64"
-                                font.pixelSize: 11
+                                font.pixelSize: 15
                                 Layout.preferredWidth: 250
                             }
                             Text {
                                 text: "raw " + fwRow.modelData.raw
                                 color: "#8f9eaf"
-                                font.pixelSize: 10
+                                font.pixelSize: 14
                                 font.family: "monospace"
                                 Layout.preferredWidth: 80
                             }
                             Text {
                                 text: fwRow.modelData.id
                                 color: "#9eabb9"
-                                font.pixelSize: 10
+                                font.pixelSize: 14
                                 font.family: "monospace"
                             }
                         }
@@ -368,14 +368,14 @@ ScrollView {
                         Text {
                             text: dataDelegate8.modelData.address
                             font.family: "monospace"
-                            font.pixelSize: 11
+                            font.pixelSize: 15
                             color: "#8a97a7"
                             Layout.fillWidth: true
                         }
                         Text {
                             text: dataDelegate8.modelData.value
                             font.family: "monospace"
-                            font.pixelSize: 11
+                            font.pixelSize: 15
                             color: dataDelegate8.modelData.changed ? "#b37d30" : "#3f566d"
                         }
                     }
@@ -404,13 +404,13 @@ ScrollView {
                 Text {
                     text: "Research observations"
                     color: "#3f566d"
-                    font.pixelSize: 14
+                    font.pixelSize: 20
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: "Raw floating-point fields from the audited 0x620205 / 2452-byte table. Units and idle/filtering semantics remain unresolved; these values are not used as sensors."
                     color: "#b18441"
-                    font.pixelSize: 11
+                    font.pixelSize: 15
                     wrapMode: Text.Wrap
                     Layout.fillWidth: true
                 }
@@ -418,7 +418,7 @@ ScrollView {
                     visible: memoryScroll.viewState.candidates.length === 0
                     text: "No matching PM-table capture is available."
                     color: "#8a97a7"
-                    font.pixelSize: 12
+                    font.pixelSize: 17
                 }
                 Repeater {
                     model: memoryScroll.viewState.candidates

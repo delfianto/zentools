@@ -1,4 +1,5 @@
-//! Headless, pipe-scoped helper. No paths or arbitrary register writes are accepted.
+//! Headless, connection-scoped helper (pipes or socket on stdin/stdout).
+//! No paths or arbitrary register writes are accepted.
 use std::{
     io::{self, BufRead, Read, Write},
     sync::mpsc,
@@ -11,13 +12,28 @@ use zentools::{
 
 fn emit(event: &HelperEvent) -> io::Result<()> {
     let stdout = io::stdout();
-    let mut output = stdout.lock();
-    serde_json::to_writer(&mut output, event)?;
+    emit_to(&mut stdout.lock(), event)
+}
+fn emit_to(output: &mut impl Write, event: &HelperEvent) -> io::Result<()> {
+    serde_json::to_writer(&mut *output, event)?;
     output.write_all(b"\n")?;
     output.flush()
 }
+fn connection_closed(error: &(dyn std::error::Error + 'static)) -> bool {
+    error.downcast_ref::<io::Error>().is_some_and(|e| {
+        matches!(
+            e.kind(),
+            io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset
+        )
+    })
+}
 fn main() {
     if let Err(error) = run() {
+        // A client can close its socket while a snapshot is being serialized.
+        // This ends that session normally, without a failed systemd unit.
+        if connection_closed(error.as_ref()) {
+            return;
+        }
         eprintln!("ZenTools helper: {error}");
         std::process::exit(1);
     }
@@ -113,4 +129,28 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn socket_disconnect_during_emit_is_a_normal_session_end() {
+        let (mut writer, client) = std::os::unix::net::UnixStream::pair().unwrap();
+        drop(client);
+        let error = emit_to(
+            &mut writer,
+            &HelperEvent::Result {
+                success: true,
+                message: "synthetic result".into(),
+            },
+        )
+        .unwrap_err();
+        assert!(connection_closed(&error), "{error}");
+        assert!(!connection_closed(&io::Error::from(
+            io::ErrorKind::PermissionDenied
+        )));
+    }
 }
