@@ -6,6 +6,7 @@
 
 use super::smn::SmnReader;
 use super::types::SmuError;
+use serde::Deserialize;
 use std::collections::BTreeMap;
 
 // =============================================================================
@@ -160,6 +161,22 @@ pub struct MemTimings {
     pub nitro: Option<[u32; 3]>,
 }
 
+/// JSON object keys are always strings. Buffered deserialization (internally
+/// tagged helper events) hands them over as strings, so parse them explicitly.
+fn deserialize_registers<'de, D>(deserializer: D) -> Result<MemRegisters, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw = BTreeMap::<String, Option<u32>>::deserialize(deserializer)?;
+    raw.into_iter()
+        .map(|(key, value)| {
+            key.parse::<u32>()
+                .map(|address| (address, value))
+                .map_err(serde::de::Error::custom)
+        })
+        .collect()
+}
+
 /// Information about a memory channel
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MemChannel {
@@ -167,6 +184,7 @@ pub struct MemChannel {
     pub dimm0_present: bool,
     pub dimm1_present: bool,
     pub timings: MemTimings,
+    #[serde(deserialize_with = "deserialize_registers")]
     pub registers: MemRegisters,
 }
 

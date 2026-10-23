@@ -14,14 +14,14 @@ Panel {
         Text {
             text: empty.title
             color: "#263448"
-            font.pixelSize: 16
+            font.pixelSize: 22
             font.weight: Font.DemiBold
             Layout.alignment: Qt.AlignHCenter
         }
         Text {
             text: empty.description
             color: "#718096"
-            font.pixelSize: 12
+            font.pixelSize: 17
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
             Layout.fillWidth: true

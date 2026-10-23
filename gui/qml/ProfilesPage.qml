@@ -27,13 +27,13 @@ ScrollView {
                 Text {
                     text: "Energy performance preference"
                     color: "#263a4e"
-                    font.pixelSize: 17
+                    font.pixelSize: 24
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: "Apply one preference to every CPU. Changes take effect immediately after Apply."
                     color: "#8492a4"
-                    font.pixelSize: 11
+                    font.pixelSize: 15
                 }
             }
             Badge {
@@ -79,7 +79,7 @@ ScrollView {
                                     anchors.centerIn: parent
                                     text: String(profileCard.modelData.level + 1)
                                     color: "#498d7c"
-                                    font.pixelSize: 14
+                                    font.pixelSize: 20
                                     font.weight: Font.DemiBold
                                 }
                             }
@@ -99,13 +99,13 @@ ScrollView {
                         Text {
                             text: profileCard.modelData.title
                             color: "#2d4357"
-                            font.pixelSize: 16
+                            font.pixelSize: 22
                             font.weight: Font.DemiBold
                         }
                         Text {
                             text: profileCard.modelData.description
                             color: "#8391a2"
-                            font.pixelSize: 11
+                            font.pixelSize: 15
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -129,13 +129,13 @@ ScrollView {
                     Text {
                         text: profilesScroll.selectedProfile < 0 ? "Choose a profile above" : profilesScroll.viewState.profiles[profilesScroll.selectedProfile].title
                         color: "#324a60"
-                        font.pixelSize: 14
+                        font.pixelSize: 20
                         font.weight: Font.DemiBold
                     }
                     Text {
                         text: profilesScroll.viewState.demo ? "Preview mode · profile changes are disabled" : !profilesScroll.viewState.eppAvailable ? (profilesScroll.viewState.eppError || "The CPU driver does not expose EPP preferences.") : "Writes are verified on every CPU. A failed change attempts to restore the previous values."
                         color: "#8a97a7"
-                        font.pixelSize: 10
+                        font.pixelSize: 14
                         wrapMode: Text.Wrap
                         Layout.fillWidth: true
                     }
@@ -154,7 +154,7 @@ ScrollView {
             Layout.rightMargin: 30
             text: "EPP controls CPU performance preference. Memory timings and firmware electrical settings are shown as read-only values. Other power-management tools may update EPP independently."
             color: "#91a0b0"
-            font.pixelSize: 11
+            font.pixelSize: 15
             wrapMode: Text.Wrap
         }
         Item {

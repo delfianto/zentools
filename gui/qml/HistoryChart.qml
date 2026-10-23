@@ -22,14 +22,14 @@ Panel {
             Text {
                 text: chart.title
                 color: "#243246"
-                font.pixelSize: 13
+                font.pixelSize: 18
                 font.weight: Font.DemiBold
                 Layout.fillWidth: true
             }
             Text {
                 text: chart.available ? chart.latest.toFixed(1) + " " + chart.unit : "N/A"
                 color: chart.accent
-                font.pixelSize: 13
+                font.pixelSize: 18
                 font.weight: Font.DemiBold
             }
         }
@@ -49,7 +49,7 @@ Panel {
                         if (sample[chart.field] !== null)
                             maximum = Math.max(maximum, sample[chart.field] * 1.15);
                     ctx.fillStyle = "#9ca9b7";
-                    ctx.font = "9px sans-serif";
+                    ctx.font = "13px sans-serif";
                     ctx.fillText(maximum.toFixed(0) + " " + chart.unit, 0, 11);
                     ctx.fillText("0", 0, height - 3);
                     ctx.lineWidth = 1;
@@ -88,7 +88,7 @@ Panel {
                 visible: !chart.available
                 text: "Waiting for this sensor"
                 color: "#8a97a7"
-                font.pixelSize: 12
+                font.pixelSize: 17
             }
         }
         RowLayout {
@@ -96,7 +96,7 @@ Panel {
             Text {
                 text: "UP TO 2 MINUTES"
                 color: "#8a97a7"
-                font.pixelSize: 9
+                font.pixelSize: 13
                 font.letterSpacing: 1
             }
             Item {
@@ -105,7 +105,7 @@ Panel {
             Text {
                 text: "NOW"
                 color: "#8a97a7"
-                font.pixelSize: 9
+                font.pixelSize: 13
                 font.letterSpacing: 1
             }
         }

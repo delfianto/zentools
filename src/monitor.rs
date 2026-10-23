@@ -595,6 +595,33 @@ mod tests {
         assert!(compare(&before, &after).is_err());
     }
     #[test]
+    fn helper_event_roundtrips_register_maps() {
+        let mut snap = snapshot();
+        let mut registers = smu::mem::MemRegisters::new();
+        registers.insert(0x5012C, Some(1));
+        registers.insert(0x50204, None);
+        let mut channel: smu::mem::MemChannel = serde_json::from_value(serde_json::json!({
+            "channel_id": 0, "dimm0_present": true, "dimm1_present": false,
+            "timings": serde_json::to_value(smu::mem::MemTimings::default()).unwrap(),
+            "registers": {}
+        }))
+        .unwrap();
+        channel.registers = registers.clone();
+        snap.memory = Some(smu::mem::MemConfig {
+            mem_type: smu::mem::MemType::DDR5,
+            channels: vec![channel],
+        });
+        let event = HelperEvent::Snapshot {
+            snapshot: Box::new(snap),
+            memory_refreshed: true,
+        };
+        let bytes = serde_json::to_vec(&event).unwrap();
+        let HelperEvent::Snapshot { snapshot, .. } = serde_json::from_slice(&bytes).unwrap() else {
+            panic!("wrong event");
+        };
+        assert_eq!(snapshot.memory.unwrap().channels[0].registers, registers);
+    }
+    #[test]
     fn snapshot_roundtrip_preserves_unavailable_values() {
         let before = snapshot();
         let bytes = serde_json::to_vec(&before).unwrap();

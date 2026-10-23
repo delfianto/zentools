@@ -14,7 +14,8 @@ memory timings. Read [README.md](README.md) for usage and
   timings, and telemetry fallback logic; exported through `src/lib.rs`.
 - `src/aod.rs`: strict decoding of the audited getter capture; no firmware setters.
 - `src/monitor.rs`: shared sampling, versioned snapshots, comparison, helper protocol.
-- `src/bin/helper.rs`: headless helper scoped to its stdin/stdout connection.
+- `src/bin/helper.rs`: headless helper scoped to its stdin/stdout connection;
+  `dist/systemd/` exposes it through an optional group-restricted Unix socket.
 - `gui/`: optional CXX-Qt frontend, QML screens, preview fixtures and desktop assets.
 - `docs/`: architecture, detection, dependencies, register maps, and research
   findings. Keep every filename in this directory lowercase and update links

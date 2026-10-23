@@ -1,10 +1,8 @@
-use crate::{backend::qobject, demo, view::State};
+use crate::{backend::qobject, demo, hardware::Connection, view::State};
 use cxx_qt::CxxQtThread;
 use cxx_qt_lib::QString;
 use std::{
-    io::{BufRead, BufReader, Write},
     path::PathBuf,
-    process::{Child, ChildStdin, Command as Process, Stdio},
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -32,109 +30,6 @@ pub enum Command {
     Save(PathBuf),
     Stop,
     Remote(u64, Result<HelperEvent, String>),
-}
-struct Helper {
-    child: Child,
-    input: Option<ChildStdin>,
-    reader: Option<JoinHandle<()>>,
-}
-impl Helper {
-    fn send(&mut self, command: &HelperCommand) -> Result<(), String> {
-        let input = self.input.as_mut().ok_or("Hardware connection is closed")?;
-        serde_json::to_writer(&mut *input, command).map_err(|e| e.to_string())?;
-        input
-            .write_all(b"\n")
-            .and_then(|_| input.flush())
-            .map_err(|e| e.to_string())
-    }
-}
-impl Drop for Helper {
-    fn drop(&mut self) {
-        let _ = self.send(&HelperCommand::Shutdown {});
-        self.input.take();
-        for _ in 0..20 {
-            if self.child.try_wait().ok().flatten().is_some() {
-                break;
-            }
-            thread::sleep(Duration::from_millis(10));
-        }
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-        if let Some(reader) = self.reader.take() {
-            let _ = reader.join();
-        }
-    }
-}
-fn launch(tx: Sender<Command>, generation: u64) -> Result<Helper, String> {
-    let executable = std::env::current_exe()
-        .map_err(|e| e.to_string())?
-        .with_file_name("zentools-helper");
-    if !executable.is_file() {
-        return Err(format!(
-            "Hardware helper is missing at {}. Build both GUI and helper with just build-gui.",
-            executable.display()
-        ));
-    }
-    let mut child = Process::new("pkexec")
-        .arg("--disable-internal-agent")
-        .arg(executable)
-        .arg("stream")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| format!("Cannot open system authorization: {e}"))?;
-    let input = child.stdin.take();
-    let output = child.stdout.take().ok_or("Cannot read hardware helper")?;
-    let reader = thread::spawn(move || {
-        let mut output = BufReader::new(output);
-        loop {
-            let mut line = Vec::new();
-            // A known helper emits bounded snapshots. Also bound the wire parser.
-            use std::io::Read;
-            match output
-                .by_ref()
-                .take(8 * 1024 * 1024 + 1)
-                .read_until(b'\n', &mut line)
-            {
-                Ok(0) => {
-                    let _ = tx.send(Command::Remote(
-                        generation,
-                        Err("Hardware access ended or authorization was cancelled".into()),
-                    ));
-                    break;
-                }
-                Ok(_) if line.len() > 8 * 1024 * 1024 => {
-                    let _ = tx.send(Command::Remote(
-                        generation,
-                        Err("Helper response exceeded the size limit".into()),
-                    ));
-                    break;
-                }
-                Ok(_) => {
-                    if tx
-                        .send(Command::Remote(
-                            generation,
-                            serde_json::from_slice(&line)
-                                .map_err(|e| format!("Invalid hardware response: {e}")),
-                        ))
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                Err(e) => {
-                    let _ = tx.send(Command::Remote(generation, Err(e.to_string())));
-                    break;
-                }
-            }
-        }
-    });
-    Ok(Helper {
-        child,
-        input,
-        reader: Some(reader),
-    })
 }
 fn publish(
     state: &State,
@@ -193,7 +88,7 @@ fn run(
         ..State::default()
     };
     let mut session = (!demo_mode).then(Session::new);
-    let mut helper: Option<Helper> = None;
+    let mut helper: Option<Connection> = None;
     let mut generation = 0;
     let mut refresh_pending = false;
     let mut force_snapshot = false;
@@ -260,11 +155,20 @@ fn run(
                     continue;
                 }
                 generation += 1;
-                match launch(tx.clone(), generation) {
+                let sender = tx.clone();
+                let id = generation;
+                match Connection::connect(move |event| {
+                    let _ = sender.send(Command::Remote(id, event));
+                }) {
                     Ok(connection) => {
+                        let message = if connection.is_service() {
+                            "Connecting to the ZenTools system service…"
+                        } else {
+                            "Waiting for system authorization…"
+                        };
                         helper = Some(connection);
                         state.authorizing = true;
-                        state.message("Waiting for system authorization…", false);
+                        state.message(message, false);
                     }
                     Err(e) => state.message(e, true),
                 }

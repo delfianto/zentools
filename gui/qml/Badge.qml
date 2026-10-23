@@ -14,7 +14,7 @@ Rectangle {
         anchors.centerIn: parent
         text: badge.text
         color: badge.tone
-        font.pixelSize: 11
+        font.pixelSize: 15
         font.weight: Font.DemiBold
     }
 }

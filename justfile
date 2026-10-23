@@ -378,3 +378,13 @@ install-gui:
     install -Dm755 target/release/zentools-helper "${HOME}/.local/bin/zentools-helper"
     install -Dm644 gui/zentools.desktop "${HOME}/.local/share/applications/zentools.desktop"
     install -Dm644 gui/zentools.svg "${HOME}/.local/share/icons/hicolor/scalable/apps/zentools.svg"
+
+# Install the small privileged service. Enabling the socket and granting access
+# are explicit administrator steps documented in docs/gui.md.
+install-service:
+    cargo build --release --no-default-features --bin zentools-helper
+    sudo groupadd --system --force zentools
+    sudo install -d -m755 -o root -g root /usr/local/libexec
+    sudo install -m755 -o root -g root target/release/zentools-helper /usr/local/libexec/zentools-helper
+    sudo install -m644 -o root -g root dist/systemd/zentools.socket dist/systemd/zentools@.service /etc/systemd/system/
+    sudo systemctl daemon-reload

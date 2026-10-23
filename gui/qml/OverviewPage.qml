@@ -28,19 +28,19 @@ ScrollView {
                 Text {
                     text: overviewScroll.viewState.cpu
                     color: "#263448"
-                    font.pixelSize: 16
+                    font.pixelSize: 22
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: overviewScroll.viewState.codename + "  ·  " + overviewScroll.viewState.source
                     color: "#8090a3"
-                    font.pixelSize: 10
+                    font.pixelSize: 14
                 }
             }
             Text {
                 text: "Updated " + overviewScroll.timeText(overviewScroll.viewState.timestamp)
                 color: "#8a97a7"
-                font.pixelSize: 10
+                font.pixelSize: 14
             }
         }
         GridLayout {
@@ -129,12 +129,12 @@ ScrollView {
                         Text {
                             text: dataDelegate1.modelData.name
                             color: "#8491a3"
-                            font.pixelSize: 10
+                            font.pixelSize: 14
                         }
                         Text {
                             text: dataDelegate1.modelData.value + (dataDelegate1.modelData.value === "N/A" ? "" : " " + dataDelegate1.modelData.unit)
                             color: "#324256"
-                            font.pixelSize: 14
+                            font.pixelSize: 20
                             font.weight: Font.DemiBold
                         }
                     }
@@ -156,14 +156,14 @@ ScrollView {
                     Text {
                         text: "Per-core telemetry"
                         color: "#243246"
-                        font.pixelSize: 14
+                        font.pixelSize: 20
                         font.weight: Font.DemiBold
                         Layout.fillWidth: true
                     }
                     Text {
                         text: "SAMPLED CLOCKS · C0 ACTIVITY WHEN AVAILABLE"
                         color: "#8b98a7"
-                        font.pixelSize: 8
+                        font.pixelSize: 11
                         font.letterSpacing: 1
                     }
                 }
@@ -191,20 +191,20 @@ ScrollView {
                                     Text {
                                         text: "C" + coreTile.modelData.id.toString().padStart(2, "0")
                                         color: "#8a98a9"
-                                        font.pixelSize: 10
+                                        font.pixelSize: 14
                                         Layout.fillWidth: true
                                     }
                                     Text {
                                         text: coreTile.modelData.clock + (coreTile.modelData.clock === "N/A" ? "" : " MHz")
                                         color: "#2c4258"
-                                        font.pixelSize: 12
+                                        font.pixelSize: 17
                                         font.weight: Font.DemiBold
                                     }
                                 }
                                 Text {
                                     text: coreTile.modelData.temperature + " °C   /   " + coreTile.modelData.power + " W"
                                     color: "#8a97a7"
-                                    font.pixelSize: 9
+                                    font.pixelSize: 13
                                 }
                                 Rectangle {
                                     Layout.fillWidth: true
@@ -226,7 +226,7 @@ ScrollView {
                     visible: overviewScroll.viewState.cores.length === 0
                     text: "Per-core readings are not available on this system."
                     color: "#8997a8"
-                    font.pixelSize: 12
+                    font.pixelSize: 17
                 }
             }
         }
@@ -250,13 +250,13 @@ ScrollView {
                             Text {
                                 text: dataDelegate3.modelData.name
                                 color: "#718096"
-                                font.pixelSize: 11
+                                font.pixelSize: 15
                                 Layout.fillWidth: true
                             }
                             Text {
                                 text: dataDelegate3.modelData.value + " / " + dataDelegate3.modelData.limit + " " + dataDelegate3.modelData.unit
                                 color: "#52667c"
-                                font.pixelSize: 11
+                                font.pixelSize: 15
                             }
                         }
                         Rectangle {
@@ -274,7 +274,7 @@ ScrollView {
                         Text {
                             text: "Reported consumption / limit"
                             color: "#9aa5b3"
-                            font.pixelSize: 9
+                            font.pixelSize: 13
                         }
                     }
                 }

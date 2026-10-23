@@ -15,7 +15,7 @@ ApplicationWindow {
     title: "ZenTools · Ryzen workstation"
     color: "#f3f5f8"
     font.family: "Inter"
-    font.pixelSize: 12
+    font.pixelSize: 17
     palette.highlight: "#088674"
     palette.buttonText: "#263448"
     palette.text: "#263448"
@@ -94,7 +94,7 @@ ApplicationWindow {
                             anchors.centerIn: parent
                             text: "Z"
                             color: "#112d2c"
-                            font.pixelSize: 23
+                            font.pixelSize: 32
                             font.weight: Font.Bold
                             font.italic: true
                         }
@@ -102,7 +102,7 @@ ApplicationWindow {
                     Text {
                         text: "ZenTools"
                         color: "#f3f8fc"
-                        font.pixelSize: 21
+                        font.pixelSize: 29
                         font.weight: Font.DemiBold
                         font.letterSpacing: -0.6
                     }
@@ -110,7 +110,7 @@ ApplicationWindow {
                 Text {
                     text: "WORKSPACE"
                     color: "#65788e"
-                    font.pixelSize: 9
+                    font.pixelSize: 13
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.8
                     Layout.leftMargin: 12
@@ -143,7 +143,7 @@ ApplicationWindow {
                             Text {
                                 text: nav.modelData
                                 color: window.page === nav.index ? "#f1f7fa" : "#a5b3c4"
-                                font.pixelSize: 12
+                                font.pixelSize: 17
                                 font.weight: window.page === nav.index ? Font.DemiBold : Font.Normal
                                 Layout.fillWidth: true
                             }
@@ -173,13 +173,13 @@ ApplicationWindow {
                         Text {
                             text: "YOUR PROCESSOR"
                             color: "#7890a9"
-                            font.pixelSize: 9
+                            font.pixelSize: 13
                             font.letterSpacing: 1.2
                         }
                         Text {
                             text: window.state.cpu.replace("AMD ", "").replace(" 16-Core Processor", "")
                             color: "#e1eaf3"
-                            font.pixelSize: 13
+                            font.pixelSize: 18
                             font.weight: Font.DemiBold
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
@@ -187,7 +187,7 @@ ApplicationWindow {
                         Text {
                             text: window.state.physicalCores ? window.state.physicalCores + " cores  /  " + window.state.logicalCpus + " threads" : "Identifying processor…"
                             color: "#91a5ba"
-                            font.pixelSize: 10
+                            font.pixelSize: 14
                         }
                     }
                 }
@@ -204,7 +204,7 @@ ApplicationWindow {
                     Text {
                         text: window.state.demo ? "PREVIEW MODE" : "LOCAL WORKSTATION"
                         color: "#768ba2"
-                        font.pixelSize: 8
+                        font.pixelSize: 11
                         font.letterSpacing: 1.3
                     }
                     Item {
@@ -213,7 +213,7 @@ ApplicationWindow {
                     Text {
                         text: "0.3"
                         color: "#60768e"
-                        font.pixelSize: 9
+                        font.pixelSize: 13
                     }
                 }
             }
@@ -243,14 +243,14 @@ ApplicationWindow {
                         Text {
                             text: window.titles[window.page]
                             color: "#17263a"
-                            font.pixelSize: 24
+                            font.pixelSize: 34
                             font.weight: Font.DemiBold
                             font.letterSpacing: -0.7
                         }
                         Text {
                             text: window.subtitles[window.page]
                             color: "#7b899b"
-                            font.pixelSize: 11
+                            font.pixelSize: 15
                         }
                     }
                     Badge {
@@ -268,7 +268,7 @@ ApplicationWindow {
                         primary: !window.state.elevated
                         enabled: !window.state.demo
                         onClicked: window.state.elevated || window.state.authorizing ? backendBridge.disconnectHardware() : backendBridge.connectHardware()
-                        ToolTip.text: "Authorize additional sensors and EPP changes through your system authentication dialog."
+                        ToolTip.text: "Connect to the ZenTools system service, or authorize a hardware helper through your system authentication dialog. EPP changes require Apply profile."
                     }
                 }
             }
@@ -283,7 +283,7 @@ ApplicationWindow {
                     anchors.leftMargin: 30
                     text: window.state.demo ? "Preview · Telemetry is simulated. Memory uses the recorded DDR5-6000 fixture. Hardware changes are disabled." : "The last sample is over 5 seconds old. Check the hardware connection or refresh."
                     color: "#94601f"
-                    font.pixelSize: 11
+                    font.pixelSize: 15
                 }
             }
             Rectangle {
@@ -300,7 +300,7 @@ ApplicationWindow {
                     anchors.bottomMargin: 10
                     text: window.state.message
                     color: window.state.messageError ? "#a1493b" : "#287562"
-                    font.pixelSize: 11
+                    font.pixelSize: 15
                     wrapMode: Text.WordWrap
                 }
             }
