@@ -194,5 +194,3 @@ MIT. See [LICENSE](LICENSE).
 ## Origin
 
 Started as a bash script called `eppcli` for toggling EPP settings. Grew into a Rust project when the author wanted SMU monitoring on a Zen 5 system and discovered that AMD's idea of documentation is "buy the chip and figure it out yourself."
-
-Built with [Claude Code](https://claude.ai/claude-code).
