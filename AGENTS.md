@@ -26,7 +26,7 @@ memory timings. Read [README.md](README.md) for usage and
 
 ## Build and validation
 
-Use the Rust version required by `Cargo.toml` (currently 1.98 or newer, edition
+Use the Rust version required by `Cargo.toml` (currently 1.100.0 or newer, edition
 2024). Run commands from the repository root.
 
 ```bash

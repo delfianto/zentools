@@ -5,7 +5,7 @@ CXX-Qt 0.10. The CLI remains usable without Qt.
 
 ## Build and run
 
-Requirements: Rust 1.98+, a C++ compiler, LLD, Qt 6 development libraries and
+Requirements: Rust 1.100.0+, a C++ compiler, LLD, Qt 6 development libraries and
 tools for Core, Gui, Qml, Quick and Quick Controls, plus the QML Layouts and
 Dialogs modules. The local implementation is tested on Qt 6.12.0. CI targets
 Qt 6.12.0. Inter is the preferred UI font, with the system fallback available.

@@ -27,8 +27,8 @@
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Rust | 1.85+ | Edition 2024 support |
-| Cargo | 1.85+ | Package manager |
+| Rust | 1.100.0+ | Edition 2024 support |
+| Cargo | 1.100.0+ | Package manager |
 | [just](https://github.com/casey/just) | any | Task runner (optional, for `just check/install`) |
 
 ## Release Build Profile
