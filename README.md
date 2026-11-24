@@ -37,6 +37,22 @@ optional [system service with Unix socket IPC](docs/gui.md#system-service-and-ip
 
 ## Install
 
+### Arch Linux (x86_64)
+
+Install `zentools-bin` for the CLI, helper, and `zen-epp`, `zen-smu`, and `zen-mem` aliases. Install `zentools-gui-bin` if you also want the Qt desktop application. Executables are installed under `/usr/local/bin`.
+
+Download the package files from [GitHub Releases](https://github.com/delfianto/zentools/releases/latest)
+and install them with `sudo pacman -U ./<package-file>`. Pass both files to
+install the GUI. To build and install both from the checksum-verified release archive:
+
+```sh
+git clone --branch v0.4.0 https://github.com/delfianto/zentools.git
+cd zentools/arch
+makepkg -si  # builds and installs both packages
+```
+
+### Build from source
+
 ```bash
 git clone https://github.com/delfianto/zentools
 cd zentools
@@ -60,7 +76,7 @@ The `just install` command creates busybox-style symlinks so you can also run:
 ### Prerequisites
 
 - AMD Ryzen CPU (Zen 2 or newer)
-- Rust 1.98+ (edition 2024)
+- Rust 1.100.0+ (edition 2024)
 - Linux with root access
 - `amd-pstate` driver in active mode (for EPP)
 - [`ryzen_smu`](https://github.com/amkillam/ryzen_smu) kernel module (for SMU features, optional for basic monitoring)
