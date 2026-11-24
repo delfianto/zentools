@@ -39,14 +39,15 @@ optional [system service with Unix socket IPC](docs/gui.md#system-service-and-ip
 
 ### Arch Linux (x86_64)
 
-Install `zentools-bin` for the CLI, helper, and `zen-epp`, `zen-smu`, and `zen-mem` aliases. Install `zentools-gui-bin` if you also want the Qt desktop application. Executables are installed under `/usr/bin`.
+Install `zentools` for the CLI, helper, and `zen-epp`, `zen-smu`, and `zen-mem` aliases. Install `zentools-gui` if you also want the Qt desktop application. Executables are installed under `/usr/bin`.
 
 Download the package files from [GitHub Releases](https://github.com/delfianto/zentools/releases/latest)
 and install them with `sudo pacman -U ./<package-file>`. Pass both files to
-install the GUI. To build and install both from the checksum-verified release archive:
+install or upgrade the GUI. If pacman asks to remove the previous packages, answer `y`.
+To build and install both from the checksum-verified release archive:
 
 ```sh
-git clone --branch v0.4.1 https://github.com/delfianto/zentools.git
+git clone --branch arch-v0.4.1-2 https://github.com/delfianto/zentools.git
 cd zentools/arch
 makepkg -si  # builds and installs both packages
 ```

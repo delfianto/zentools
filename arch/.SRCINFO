@@ -1,7 +1,7 @@
-pkgbase = zentools-bin
+pkgbase = zentools
 	pkgdesc = AMD Ryzen power profiles, telemetry and memory timings
 	pkgver = 0.4.1
-	pkgrel = 1
+	pkgrel = 2
 	url = https://github.com/delfianto/zentools
 	arch = x86_64
 	license = MIT
@@ -9,16 +9,17 @@ pkgbase = zentools-bin
 	depends = libgcc
 	options = !strip
 	options = !debug
-	source = https://github.com/delfianto/zentools/releases/download/v0.4.1/zentools-v0.4.1-linux-x86_64.tar.gz
+	source = https://github.com/delfianto/zentools/releases/download/arch-v0.4.1-2/zentools-v0.4.1-linux-x86_64.tar.gz
 	sha256sums = a1993df04fcb1187220d7135cda30752f2dadf71b66cc46f433c304255b1632d
 
-pkgname = zentools-bin
-	provides = zentools=0.4.1
-	conflicts = zentools
+pkgname = zentools
+	provides = zentools-bin=0.4.1-2
+	conflicts = zentools-bin
+	replaces = zentools-bin
 
-pkgname = zentools-gui-bin
+pkgname = zentools-gui
 	pkgdesc = Qt desktop application for ZenTools
-	depends = zentools-bin=0.4.1-1
+	depends = zentools=0.4.1-2
 	depends = glibc
 	depends = libgcc
 	depends = libstdc++
@@ -26,5 +27,6 @@ pkgname = zentools-gui-bin
 	depends = qt6-declarative>=6.12
 	depends = hicolor-icon-theme
 	optdepends = polkit: authorize elevated hardware access
-	provides = zentools-gui=0.4.1
-	conflicts = zentools-gui
+	provides = zentools-gui-bin=0.4.1-2
+	conflicts = zentools-gui-bin
+	replaces = zentools-gui-bin

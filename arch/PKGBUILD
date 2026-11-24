@@ -1,7 +1,7 @@
-pkgbase=zentools-bin
-pkgname=('zentools-bin' 'zentools-gui-bin')
+pkgbase=zentools
+pkgname=('zentools' 'zentools-gui')
 pkgver=0.4.1
-pkgrel=1
+pkgrel=2
 pkgdesc='AMD Ryzen power profiles, telemetry and memory timings'
 arch=('x86_64')
 url='https://github.com/delfianto/zentools'
@@ -9,12 +9,13 @@ license=('MIT')
 depends=('glibc' 'libgcc')
 options=('!strip' '!debug')
 _archive="zentools-v$pkgver-linux-x86_64"
-source=("$url/releases/download/v$pkgver/$_archive.tar.gz")
+source=("$url/releases/download/arch-v$pkgver-$pkgrel/$_archive.tar.gz")
 sha256sums=('a1993df04fcb1187220d7135cda30752f2dadf71b66cc46f433c304255b1632d')
 
-package_zentools-bin() {
-    provides=("zentools=$pkgver")
-    conflicts=('zentools')
+package_zentools() {
+    provides=("zentools-bin=$pkgver-$pkgrel")
+    conflicts=('zentools-bin')
+    replaces=('zentools-bin')
     cd "$srcdir/$_archive"
     install -Dm0755 zentools "$pkgdir/usr/bin/zentools"
     install -Dm0755 zentools-helper "$pkgdir/usr/bin/zentools-helper"
@@ -25,12 +26,13 @@ package_zentools-bin() {
     install -Dm0644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
 
-package_zentools-gui-bin() {
+package_zentools-gui() {
     pkgdesc='Qt desktop application for ZenTools'
-    depends=("zentools-bin=$pkgver-$pkgrel" 'glibc' 'libgcc' 'libstdc++' 'qt6-base>=6.12' 'qt6-declarative>=6.12' 'hicolor-icon-theme')
+    depends=("zentools=$pkgver-$pkgrel" 'glibc' 'libgcc' 'libstdc++' 'qt6-base>=6.12' 'qt6-declarative>=6.12' 'hicolor-icon-theme')
     optdepends=('polkit: authorize elevated hardware access')
-    provides=("zentools-gui=$pkgver")
-    conflicts=('zentools-gui')
+    provides=("zentools-gui-bin=$pkgver-$pkgrel")
+    conflicts=('zentools-gui-bin')
+    replaces=('zentools-gui-bin')
     cd "$srcdir/$_archive"
     install -Dm0755 zentools-gui "$pkgdir/usr/bin/zentools-gui"
     install -Dm0644 zentools.desktop "$pkgdir/usr/share/applications/zentools.desktop"
