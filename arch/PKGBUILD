@@ -1,6 +1,6 @@
 pkgbase=zentools-bin
 pkgname=('zentools-bin' 'zentools-gui-bin')
-pkgver=0.4.0
+pkgver=0.4.1
 pkgrel=1
 pkgdesc='AMD Ryzen power profiles, telemetry and memory timings'
 arch=('x86_64')
@@ -10,17 +10,17 @@ depends=('glibc' 'libgcc')
 options=('!strip' '!debug')
 _archive="zentools-v$pkgver-linux-x86_64"
 source=("$url/releases/download/v$pkgver/$_archive.tar.gz")
-sha256sums=('d192d802f3aa68951e4c6db5f43041e2b7891527486b150ef73d01bcbd07201c')
+sha256sums=('a1993df04fcb1187220d7135cda30752f2dadf71b66cc46f433c304255b1632d')
 
 package_zentools-bin() {
     provides=("zentools=$pkgver")
     conflicts=('zentools')
     cd "$srcdir/$_archive"
-    install -Dm0755 zentools "$pkgdir/usr/local/bin/zentools"
-    install -Dm0755 zentools-helper "$pkgdir/usr/local/bin/zentools-helper"
+    install -Dm0755 zentools "$pkgdir/usr/bin/zentools"
+    install -Dm0755 zentools-helper "$pkgdir/usr/bin/zentools-helper"
     local alias
     for alias in zen-epp zen-smu zen-mem; do
-        ln -s zentools "$pkgdir/usr/local/bin/$alias"
+        ln -s zentools "$pkgdir/usr/bin/$alias"
     done
     install -Dm0644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
@@ -32,7 +32,7 @@ package_zentools-gui-bin() {
     provides=("zentools-gui=$pkgver")
     conflicts=('zentools-gui')
     cd "$srcdir/$_archive"
-    install -Dm0755 zentools-gui "$pkgdir/usr/local/bin/zentools-gui"
+    install -Dm0755 zentools-gui "$pkgdir/usr/bin/zentools-gui"
     install -Dm0644 zentools.desktop "$pkgdir/usr/share/applications/zentools.desktop"
     install -Dm0644 zentools.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/zentools.svg"
     install -Dm0644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
